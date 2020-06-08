@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>netstandard2.0;netstandard1.5;net45</TargetFrameworks>
+		<MinClientVersion>1.5</MinClientVersion>
+		<PackageId>Bioruebe.BioLib</PackageId>
+		<Product>BioLib</Product>
+		<Version>1.0.0</Version>
+		<Authors>Bioruebe</Authors>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<PackageProjectUrl>https://github.com/Bioruebe/Bio.cs</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/Bioruebe/Bio.cs.git</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<PackageReleaseNotes>Initial release</PackageReleaseNotes>
+		<NeutralLanguage>en</NeutralLanguage>
+		<Copyright>2018-2020 William Engelmann</Copyright>
+		<DocumentationFile>Bio.cs.xml</DocumentationFile>
+		<Description>Bioruebe's standard library</Description>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)'=='Release'">
+		<Optimize>true</Optimize>
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Include="..\LICENSE" Pack="true" PackagePath="/" />
+	</ItemGroup>
+</Project>
