@@ -67,24 +67,22 @@ namespace BioTests {
 		}
 
 		[TestMethod]
-		[ExpectedException(typeof(ArgumentException))]
 		public void Select_DefaultChoice() {
 			var options = new PromptOptions(new List<PromptOption>() {
 				new PromptOption("yes", () => true),
 				new PromptOption("no", () => false)
 			}, 'n');
 
-			Assert.AreEqual(false, options.Select('\u0000'));
+			Assert.AreEqual(false, options.Select(PromptInput.ENTER));
 		}
 
 		[TestMethod]
-		[ExpectedException(typeof(ArgumentException))]
 		public void Select_InvalidInput() {
 			var options = new PromptOptions(new List<PromptOption>() {
 				new PromptOption("yes", () => true)
 			});
 
-			options.Select('n');
+			Assert.AreEqual(PromptOption.NONE, options.Select('n'));
 		}
 
 		[TestMethod]

@@ -23,13 +23,13 @@ namespace BioLib {
 		/// </summary>
 		/// <param name="promptOptions">The <see cref="PromptOption"/>s to display</param>
 		/// <param name="defaultKey">The key used as default, if the user presses enter. An option with this key must exist!</param>
-		public PromptOptions(IEnumerable<PromptOption> promptOptions, char defaultKey = '\0') {
+		public PromptOptions(IEnumerable<PromptOption> promptOptions, char defaultKey = PromptInput.NULL_CHAR) {
 			foreach (var option in promptOptions) {
 				Add(option);
 			}
 
 			try {
-				if (defaultKey != '\0') options[defaultKey].isDefaultChoice = true;
+				if (defaultKey != PromptInput.NULL_CHAR) options[defaultKey].isDefaultChoice = true;
 			}
 			catch (KeyNotFoundException) {
 				throw new ArgumentException("Invalid default key: no choice exists with key '" + defaultKey + "'. Valid keys are " + string.Join("|", options.Keys));
@@ -41,7 +41,7 @@ namespace BioLib {
 		/// </summary>
 		/// <param name="option">The option to add</param>
 		public void Add(PromptOption option) {
-			if (option.key == '\0') {
+			if (option.key == PromptInput.NULL_CHAR) {
 				foreach (var character in option.name) {
 					if (options.ContainsKey(character)) continue;
 
@@ -49,7 +49,7 @@ namespace BioLib {
 					break;
 				}
 
-				if (option.key == '\0') throw new ArgumentException("Invalid prompt option " + option.name + ": no key specified and all characters of the name are already in use");
+				if (option.key == PromptInput.NULL_CHAR) throw new ArgumentException("Invalid prompt option " + option.name + ": no key specified and all characters of the name are already in use");
 			}
 			else if (options.ContainsKey(option.key)){
 				throw new ArgumentException("Invalid prompt option " + option.name + ": key is already in use");
@@ -66,14 +66,14 @@ namespace BioLib {
 		/// <returns></returns>
 		public object Select(char input) {
 			PromptOption option;
-			if (input == Bio.CR) {
+			if (input == PromptInput.ENTER) {
 				option = DefaultOption;
 			}
 			else {
 				options.TryGetValue(input, out option);
 			}
 
-			if (option == null) throw new ArgumentException();
+			if (option == null) return PromptOption.NONE;
 
 			return option.Select();
 		}
@@ -91,6 +91,12 @@ namespace BioLib {
 	/// A single option used in a prompt.
 	/// </summary>
 	public class PromptOption {
+		/// <summary>
+		/// A constant representing the user did not select any of the available options,
+		/// e.g. by pressing a key, which is not linked to an option
+		/// </summary>
+		public static readonly object NONE = new object();
+
 		/// <summary>
 		/// The name of the option
 		/// </summary>
@@ -169,5 +175,19 @@ namespace BioLib {
 
 			return name + $" [{key}]";
 		}
+	}
+
+	/// <summary>
+	/// Special inputs, which can be received in a prompt
+	/// </summary>
+	public static class PromptInput {
+		/// <summary>
+		/// The \0 character
+		/// </summary>
+		public const char NULL_CHAR = '\0';
+		/// <summary>
+		/// The enter key - this is interpreted as the default option
+		/// </summary>
+		public const char ENTER = '\r';
 	}
 }
