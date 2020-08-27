@@ -1,47 +1,22 @@
-﻿using System;
+﻿using BioLib.Streams;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security;
 
 namespace BioLib {
 	/// <summary>
 	///  Main library
 	/// </summary>
 	public static class Bio {
-		public const char DEFAULT_CHAR = '\u0000';
-		public const char NULL_CHAR = '\0';
-		public const char CR = '\r';
-		public const string SEPERATOR = "\n---------------------------------------------------------------------";
-
+		private const string SEPARATOR = "\n---------------------------------------------------------------------";
 		private static readonly Dictionary<string, char> promptSettings = new Dictionary<string, char>();
-
-		/// <summary>
-		/// Copy N <paramref name="bytes"/> from <paramref name="input"/> to <paramref name="output"/> stream.
-		/// </summary>
-		/// <param name="input">Input stream</param>
-		/// <param name="output">Output stream</param>
-		/// <param name="bytes">Amount of bytes to copy or -1 to copy all</param>
-		/// <param name="keepPosition">If true, resets the input stream position after copying</param>
-		/// <param name="bufferSize">The size of the internal buffer to use for copying</param>
-		public static void CopyStream(Stream input, Stream output, int bytes = -1, bool keepPosition = true, int bufferSize = 1024) {
-			var buffer = new byte[bufferSize];
-			long initialPosition = 0;
-			if (keepPosition) initialPosition = input.Position;
-			int read;
-			if (bytes < 1) bytes = (int)(input.Length - input.Position);
-
-			while (bytes > 0 && (read = input.Read(buffer, 0, Math.Min(bufferSize, bytes))) > 0) {
-				output.Write(buffer, 0, read);
-				bytes -= read;
-			}
-
-			if (keepPosition) input.Seek(initialPosition, SeekOrigin.Begin);
-		}
+		private static int lastProgress = -1;
 
 		/// <summary>
 		/// Test if a byte array contains a specific <paramref name="pattern"/> at position <paramref name="pos"/> by comparing each byte.
-		/// Useful to verify a file magic.
 		/// </summary>
 		/// <param name="array">Input array to search pattern in</param>
 		/// <param name="pattern">The pattern to search</param>
@@ -58,7 +33,7 @@ namespace BioLib {
 		}
 
 		/// <summary>
-		/// Returns <paramref name="value"/> clamped to the inclusive range of <paramref name="min"/> and <paramref name="max"/>.
+		/// Return <paramref name="value"/> clamped to the inclusive range of <paramref name="min"/> and <paramref name="max"/>
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
 		/// <param name="value">The value to clamp</param>
@@ -91,6 +66,15 @@ namespace BioLib {
 		}
 
 		/// <summary>
+		/// Create a <see cref="MemoryStream"/> filled with random bytes
+		/// </summary>
+		/// <param name="length"></param>
+		/// <returns></returns>
+		public static Stream RandomStream(int length) {
+			return new MemoryStream(RandomArray<byte>(length, byte.MinValue, byte.MaxValue));
+		}
+
+		/// <summary>
 		/// Convenience function. Ensures a path is valid and does not exist.
 		/// If the path already exists, a prompt is displayed asking the user to overwrite or rename.
 		/// </summary>
@@ -98,7 +82,7 @@ namespace BioLib {
 		/// <param name="promptId">A unique ID for the prompt, refer to <see cref="Prompt(string, string, PromptOptions)"/> for more information.</param>
 		/// <returns>The file path depending on user choice or null indicating the file should not be overwritten.</returns>
 		public static string EnsureFileDoesNotExist(string path, string promptId = "") {
-			path = FileReplaceInvalidChars(path);
+			path = PathReplaceInvalidChars(path);
 			if (!File.Exists(path)) return path;
 
 			var promptOptions = new PromptOptions(new List<PromptOption>() {
@@ -144,17 +128,142 @@ namespace BioLib {
 		}
 
 		/// <summary>
-		/// Replace all invalid characters in a file name.
+		/// Replace all invalid characters in a path string
 		/// </summary>
-		/// <param name="filename"></param>
-		/// <param name="by"></param>
+		/// <param name="path">The path to sanitize</param>
+		/// <param name="by">The string with which invalid characters will be replaced</param>
+		/// <param name="isDirectory">If the path points to a directory, file name checks are disabled</param>
 		/// <returns></returns>
-		public static string FileReplaceInvalidChars(string filename, string by = "_") {
-			return string.Join(by, filename.Split(Path.GetInvalidPathChars()));
+		public static string PathReplaceInvalidChars(string path, string by = "_", bool isDirectory = false) {
+			if (path == null) throw new ArgumentNullException(nameof(path));
+			if (by == null) throw new ArgumentNullException(nameof(by));
+
+			path = string.Join(by, path.Split(Path.GetInvalidPathChars()));
+			if (!isDirectory) path = PathReplaceInvalidFileNameChars(path, by);
+
+			return path;
 		}
 
 		/// <summary>
-		/// Print a standard command line program header.
+		/// Replace all invalid characters in a file name. This function only tests the file part of a path string,
+		/// it does not guarantee that the whole path is valid. Use <see cref="PathReplaceInvalidChars(string, string, bool)"/> instead.
+		/// </summary>
+		/// <param name="path"></param>
+		/// <param name="by"></param>
+		/// <returns></returns>
+		private static string PathReplaceInvalidFileNameChars(string path, string by = "_") {
+			if (path == null) throw new ArgumentNullException(nameof(path));
+			if (by == null) throw new ArgumentNullException(nameof(by));
+
+			var fileName = Path.GetFileName(path);
+			fileName = string.Join(by, fileName.Split(Path.GetInvalidFileNameChars()));
+			return Path.Combine(Path.GetDirectoryName(path), fileName);
+		}
+
+		/// <summary>
+		/// Combine a (relative or absolute) file path and an output directory.
+		/// The returned path is guaranteed to be valid and inside the <paramref name="outputDirectory"/>.
+		/// If a valid path could not be created, a <see cref="SecurityException"/> is thrown.
+		/// </summary>
+		/// <param name="outputDirectory"></param>
+		/// <param name="filePath">Relative or absolute path to be merged with <paramref name="outputDirectory"/></param>
+		/// <returns></returns>
+		public static string GetSafeOutputPath(string outputDirectory, string filePath) {
+			if (string.IsNullOrWhiteSpace(outputDirectory)) throw new ArgumentNullException(nameof(outputDirectory));
+			if (string.IsNullOrWhiteSpace(filePath)) throw new ArgumentNullException(nameof(filePath));
+
+			outputDirectory = Path.GetFullPath(outputDirectory);
+			filePath = PathReplaceInvalidChars(filePath);
+			filePath = PathRemoveRelativeParts(filePath).Replace(":", "");
+			
+			var combined = Path.Combine(outputDirectory, filePath);
+			combined = Path.GetFullPath(combined);
+			if (!combined.Contains(outputDirectory)) throw new SecurityException("The combined path is outside the output directory");
+
+			return combined;
+		}
+
+		/// <summary>
+		/// Remove relative parts (/./ or /../) of a <paramref name="path"/>
+		/// </summary>
+		/// <param name="path"></param>
+		/// <returns></returns>
+		public static string PathRemoveRelativeParts(string path) {
+			if (path == null) throw new ArgumentNullException(nameof(path));
+
+			var split = path.Split('/', '\\');
+			var filtered = split.Where((part) => part != ".." && part != ".");
+			return string.Join(Path.DirectorySeparatorChar.ToString(), filtered);
+		}
+
+		/// <summary>
+		/// Open a file and handle exceptions
+		/// </summary>
+		/// <param name="path"></param>
+		/// <param name="fileMode"></param>
+		/// <returns></returns>
+		public static FileStream FileOpen(string path, FileMode fileMode) {
+			try {
+				return File.Open(path, fileMode);
+			}
+			catch (FileNotFoundException) {
+				Error("The input file does not exist", EXITCODE.IO_ERROR);
+			}
+			catch (Exception e) {
+				Error("Failed to read input file: " + e.Message, EXITCODE.IO_ERROR);
+			}
+
+			return null;
+		}
+
+		/// <summary>
+		/// Move a file from <paramref name="from"/> to <paramref name="to"/> making sure the paths are valid.
+		/// If <paramref name="promptId"/> is not null, an overwrite prompt is displayed if <paramref name="to"/> already exists.
+		/// </summary>
+		/// <param name="from"></param>
+		/// <param name="to"></param>
+		/// <param name="promptId"></param>
+		/// <returns>True if the operation succeeded, otherwise false</returns>
+		public static bool FileMove(string from, string to, string promptId = null) {
+			if (!File.Exists(from)) return false;
+			to = PathReplaceInvalidChars(to);
+
+			//Debug($"Moving {from} to {to}");
+			if (promptId != null) {
+				to = EnsureFileDoesNotExist(to, promptId);
+				if (to == null) return false;
+			}
+
+			Directory.CreateDirectory(Path.GetDirectoryName(to));
+
+			try {
+				File.Delete(to);
+				File.Move(from, to);
+			}
+			catch (Exception e) {
+				Warn("Failed to move file: " + e.Message);
+				return false;
+			}
+
+			return true;
+		}
+
+		/// <summary>
+		/// Returns is a directory is empty or does not exist
+		/// </summary>
+		/// <param name="path"></param>
+		/// <returns></returns>
+		public static bool DirectoryIsEmpty(string path) {
+			if (!Directory.Exists(path)) return true;
+
+			IEnumerable<string> items = Directory.EnumerateFileSystemEntries(path);
+			using (IEnumerator<string> en = items.GetEnumerator()) {
+				return !en.MoveNext();
+			}
+		}
+
+		/// <summary>
+		/// Print a standard command line program header
 		/// </summary>
 		/// <param name="name">The name of the program</param>
 		/// <param name="version">The program version</param>
@@ -166,11 +275,11 @@ namespace BioLib {
 			var header = string.Format($"{name} by Bioruebe (https://bioruebe.com), {year}, Version {version}, Released under a {license} style license\n\n{description}");
 			if (usage != null) header += "\n\nUsage: " + GetProgramName() + " " + usage;
 			
-			Console.WriteLine(header + "\n" + SEPERATOR);
+			Console.WriteLine(header + "\n" + SEPARATOR);
 		}
 
 		/// <summary>
-		/// Convenience function to check if the command line arguments contain one of the valid help switches -h, --help, /?, -?, and /h.
+		/// Convenience function to check if the command line arguments contain one of the valid help switches -h, --help, /?, -?, and /h
 		/// </summary>
 		/// <param name="args"></param>
 		/// <returns></returns>
@@ -179,14 +288,14 @@ namespace BioLib {
 		}
 
 		/// <summary>
-		/// Print a seperator line.
+		/// Print a seperator line
 		/// </summary>
-		public static void Seperator() {
-			Console.WriteLine(SEPERATOR + "\n");
+		public static void Separator() {
+			Console.WriteLine(SEPARATOR + "\n");
 		}
 
 		/// <summary>
-		/// Return the name of the currently running program.
+		/// Return the name of the currently running program
 		/// </summary>
 		/// <returns></returns>
 		public static string GetProgramName() {
@@ -194,7 +303,7 @@ namespace BioLib {
 		}
 
 		/// <summary>
-		/// Return the path of the currently running program.
+		/// Return the path of the currently running program
 		/// </summary>
 		/// <returns></returns>
 		public static string GetProgramPath() {
@@ -232,15 +341,15 @@ namespace BioLib {
 			promptSettings.TryGetValue(promptId, out var setting);
 
 			char input;
-			object result = new ArgumentException();
-			if (setting == NULL_CHAR) {
+			object result = PromptOption.NONE;
+			if (setting == PromptInput.NULL_CHAR) {
 				Cout($"{message} {promptOptions}");
 			}
 			else {
 				result = promptOptions.Select(setting);
 			}
 
-			while (result is ArgumentException) {
+			while (result == PromptOption.NONE) {
 				input = Console.ReadKey().KeyChar;
 				Console.WriteLine();
 				result = promptOptions.Select(input);
@@ -261,6 +370,32 @@ namespace BioLib {
 		}
 
 		/// <summary>
+		/// Print a simple progress message, e.g.
+		/// <code>[1/10] Processing file file1.txt</code>
+		/// This function saves the last <paramref name="current"/> value and does not print anything for subsequent calls
+		/// with the same <paramref name="current"/> value.<br/><see cref="ProgressWithoutDuplicatesReset"/> must be called
+		/// after finishing to ensure the next call does output a message.
+		/// </summary>
+		/// <param name="msg"></param>
+		/// <param name="current"></param>
+		/// <param name="total"></param>
+		public static void ProgressWithoutDuplicates(string msg, int current, int total) {
+			//Cout(current + "\t" + lastProgress);
+			if (current == lastProgress) return;
+
+			lastProgress = current;
+
+			Cout(string.Format($"[{current}/{total}] {msg}"));
+		}
+
+		/// <summary>
+		/// Reset the last progress value. See <seealso cref="ProgressWithoutDuplicates(string, int, int)"/>
+		/// </summary>
+		public static void ProgressWithoutDuplicatesReset() {
+			lastProgress = -1;
+		}
+
+		/// <summary>
 		/// Print an array of numbers in a format that fits numeric values better than the generic <see cref="Cout(IEnumerable, LOG_SEVERITY)"/>
 		/// </summary>
 		/// <param name="array">The array to print</param>
@@ -272,7 +407,7 @@ namespace BioLib {
 		/// <param name="logSeverity">The <see cref="LOG_SEVERITY"/> for the output</param>
 		public static void PrintNumbers(byte[] array, int endIndex = -1, string formatString = "", string formatStringOffset = "", uint valuesPerLine = 16, uint separatorPosition = 8, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE) {
 			var output = "";
-			endIndex = Clamp(endIndex, 0, array.Length);
+			endIndex = endIndex < 0? array.Length: Clamp(endIndex, 0, array.Length);
 
 			for (int i = 0; i < endIndex; i++) {
 				if (i % valuesPerLine == 0) {
@@ -291,7 +426,30 @@ namespace BioLib {
 		}
 
 		/// <summary>
-		/// Print a message to stdout (and stderr depending on the <paramref name="logSeverity"/>).
+		/// Print a byte array in the form of a hex dump
+		/// </summary>
+		/// <param name="array"></param>
+		/// <param name="endIndex"></param>
+		/// <param name="logSeverity"></param>
+		public static void HexDump(byte[] array, int endIndex = -1, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE) {
+			PrintNumbers(array, endIndex, "X2", "X4", 16, 8, logSeverity);
+		}
+
+		/// <summary>
+		/// Print a stream's content in the form of a hex dump
+		/// </summary>
+		/// <param name="stream"></param>
+		/// <param name="bytesToDump"></param>
+		/// <param name="logSeverity"></param>
+		public static void HexDump(Stream stream, int bytesToDump, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE) {
+			bytesToDump = Clamp(bytesToDump, 0, (int) stream.Length);
+			byte[] buffer = new byte[bytesToDump];
+			stream.KeepPosition(() => stream.Read(buffer, 0, bytesToDump));
+			HexDump(buffer, -1, logSeverity);
+		}
+
+		/// <summary>
+		/// Print a message to stdout (and stderr depending on the <paramref name="logSeverity"/>)
 		/// </summary>
 		/// <param name="msg">The message to print</param>
 		/// <param name="logSeverity">Affects how the message will be displayed. Refer to the <see cref="LOG_SEVERITY"/> documentation.</param>
@@ -322,7 +480,7 @@ namespace BioLib {
 		}
 
 		/// <summary>
-		/// Print the string representation of each object in an enumerable to stdout along with its index.
+		/// Print the string representation of each object in an enumerable to stdout along with its index
 		/// </summary>
 		/// <param name="enumerable"></param>
 		/// <param name="logSeverity"></param>
@@ -335,16 +493,30 @@ namespace BioLib {
 
 		/// <summary>
 		/// Pretty print a byte array.
-		/// Convenience function, which calls <see cref="PrintNumbers(byte[], int, string, string, uint, uint, LOG_SEVERITY)"/>
+		/// Convenience function, which calls <see cref="HexDump(byte[], int, LOG_SEVERITY)"/>
 		/// </summary>
 		/// <param name="array"></param>
+		/// <param name="bytesToDump">The amount of bytes to print</param>
 		/// <param name="logSeverity"></param>
-		public static void Cout(byte[] array, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE) {
-			PrintNumbers(array, 256, "X2", "X4", 16, 8, logSeverity);
+		public static void Cout(byte[] array, int bytesToDump = 256, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE) {
+			HexDump(array, bytesToDump, logSeverity);
 		}
 
 		/// <summary>
-		/// Print empty line to stdout.
+		/// Pretty print a stream's content.
+		/// Convenience function, which calls <see cref="HexDump(byte[], int, LOG_SEVERITY)"/>
+		/// </summary>
+		/// <param name="stream"></param>
+		/// <param name="bytesToDump">The amount of bytes to print</param>
+		/// <param name="logSeverity"></param>
+		public static void Cout(Stream stream, int bytesToDump = 256, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE) {
+			Cout(stream + " @ " + stream.Position + ":", logSeverity);
+
+			HexDump(stream, bytesToDump, logSeverity);
+		}
+
+		/// <summary>
+		/// Print empty line to stdout
 		/// </summary>
 		public static void Cout() {
 			Console.WriteLine();
@@ -360,7 +532,7 @@ namespace BioLib {
 		}
 
 		/// <summary>
-		/// Print debug message.
+		/// Print a debug message.
 		/// This is a convenience method to be used instead of <see cref="Cout(object, LOG_SEVERITY)"/> with severity <see cref="LOG_SEVERITY.DEBUG"/>
 		/// </summary>
 		/// <param name="msg"></param>
@@ -369,7 +541,7 @@ namespace BioLib {
 		}
 
 		/// <summary>
-		/// Print warning message.
+		/// Print a warning message.
 		/// This is a convenience method to be used instead of <see cref="Cout(object, LOG_SEVERITY)"/> with severity <see cref="LOG_SEVERITY.WARNING"/>
 		/// </summary>
 		/// <param name="msg"></param>
@@ -378,7 +550,7 @@ namespace BioLib {
 		}
 
 		/// <summary>
-		/// Print error message and exit if an exit code is specified
+		/// Print an error message and exit if an exit code is specified
 		/// </summary>
 		/// <param name="msg">The message to print</param>
 		/// <param name="exitCode"></param>
@@ -387,7 +559,7 @@ namespace BioLib {
 		}
 
 		/// <summary>
-		/// Print error message and exit if an exit code is specified
+		/// Print an error message and exit if an exit code is specified
 		/// </summary>
 		/// <param name="msg"></param>
 		/// <param name="exitCode"></param>
@@ -400,8 +572,8 @@ namespace BioLib {
 		}
 
 		/// <summary>
-		/// Delay program termination until a key is pressed.
-		/// This function will only work in the debug version of BioLib!
+		/// Delay program termination until a key is pressed.<br/>
+		/// <b>This function will only work in the debug version of BioLib!</b>
 		/// </summary>
 		public static void Pause() {
 #if DEBUG
