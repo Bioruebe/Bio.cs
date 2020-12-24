@@ -100,8 +100,8 @@ namespace BioLib.Streams {
         /// </summary>
         /// <param name="stream"></param>
         /// <returns>A <see cref="MemoryStream"/> with a copy of the stream's content</returns>
-        public static Stream Copy(this Stream stream) {
-            return stream.Extract();
+        public static MemoryStream Copy(this Stream stream) {
+            return stream.ExtractFrom(0);
 		}
 
         /// <summary>
@@ -117,7 +117,7 @@ namespace BioLib.Streams {
             int read;
             if (bytes < 0) bytes = input.Length - input.Position;
 
-            //Debug($"Copy {bytes} bytes from position {input.Position}");
+            //Bio.Debug($"Copy {bytes} bytes from position {input.Position}");
             while (bytes > 0 && (read = input.Read(buffer, 0, (int)Math.Min(bufferSize, bytes))) > 0) {
                 output.Write(buffer, 0, read);
                 bytes -= read;
@@ -200,6 +200,19 @@ namespace BioLib.Streams {
             while (stream.Position < endOffset) {
                 yield return Extract(stream, Math.Min(length, endOffset - stream.Position));
 			}
+		}
+
+        /// <summary>
+        /// Appends <paramref name="other"/> to this stream. This is a convenience function, which creates a new instance of <see cref="ConcatenatedStream"/>.<br/><br/>
+        /// <b>Warning</b>: Actions performed on the <see cref="ConcatenatedStream"/> modify the underlying streams directly! Any changes to <paramref name="stream"/> or <paramref name="other"/> can lead to unspecified behaviour! Make sure to read the documentation of <see cref="ConcatenatedStream"/>.
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <param name="other"></param>
+        /// <returns></returns>
+        public static ConcatenatedStream Concatenate(this Stream stream, Stream other) {
+            if (other == null) throw new ArgumentNullException(nameof(other));
+
+            return new ConcatenatedStream(stream, other);
 		}
 
         /// <summary>
@@ -307,6 +320,15 @@ namespace BioLib.Streams {
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Reads the <paramref name="stream"/> from beginning to end and returns its content as a byte array.
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <returns></returns>
+        public static byte[] ToByteArray(this Stream stream) {
+            return stream.Copy().ToArray();
         }
     }
 }

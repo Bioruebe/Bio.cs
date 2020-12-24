@@ -186,6 +186,15 @@ namespace BioTests {
 		}
 
 		[TestMethod]
+		public void Copy_ShouldIgnorePosition() {
+			randomStream.Position = STREAM_LENGTH / 2;
+			var copy = randomStream.Copy();
+			Assert.AreNotEqual(copy, randomStream);
+			Assert.AreEqual(STREAM_LENGTH, copy.Length);
+			Assert.IsTrue(copy.IsEqualTo(randomStream));
+		}
+
+		[TestMethod]
 		[ExpectedException(typeof(ArgumentNullException))]
 		public void CopyBytes_OutputStreamIsNull_ShouldThrowException() {
 			randomStream.Copy(null);
@@ -353,6 +362,18 @@ namespace BioTests {
 			parts = randomStream.Split(1, 0).ToArray();
 
 			Assert.AreEqual(0, parts.Length);
+		}
+
+		[TestMethod]
+		[ExpectedException(typeof(ArgumentNullException))]
+		public void Concatenate_Null_ShouldThrowException() {
+			randomStream.Concatenate(null);
+		}
+
+		[TestMethod]
+		public void Concatenate() {
+			var concatenated = randomStream.Concatenate(nullBytesStream);
+			Assert.AreEqual(typeof(ConcatenatedStream), concatenated.GetType());
 		}
 
 		[TestMethod]
