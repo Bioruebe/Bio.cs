@@ -1,4 +1,15 @@
 # Changelog
+
+## 2.1.0
+
+- Added `ConcatenatedStream` and `OffsetStream` classes
+- Added `Concatenate` and `ToByteArray` functions to `StreamExtensions`
+- Added `Tout` (`Cout` with prepended timestamp)
+- Added `Debug` overload which allows a dynamic amount of parameters
+- Fixed RNG initialization in `RandomArray` (affects `RandomStream` as well)
+- Fixed `StreamExtensions.Copy` not copying the whole stream if the position is not zero
+- Fixed `StreamExtensions.Copy` returning `Stream` instead of `MemoryStream`
+
 ## 2.0.0
 
 [Breaking changes](UPGRADE_V1_V2.md)
@@ -17,4 +28,5 @@
 - Fixed `FileReplaceInvalidChars`: invalid characters in file names (such as `?`) were not replaced
 
 ## 1.0.0
+
 Initial release
