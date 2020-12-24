@@ -13,6 +13,7 @@ namespace BioLib {
 	public static class Bio {
 		private const string SEPARATOR = "\n---------------------------------------------------------------------";
 		private static readonly Dictionary<string, char> promptSettings = new Dictionary<string, char>();
+		private static readonly Random random = new Random();
 		private static int lastProgress = -1;
 
 		/// <summary>
@@ -55,7 +56,6 @@ namespace BioLib {
 		/// <param name="max">Maximum value for each number (inclusive)</param>
 		/// <returns></returns>
 		public static T[] RandomArray<T>(int arraySize, int min = 0, int max = int.MaxValue) {
-			Random random = new Random();
 			var array = new T[arraySize];
 
 			for (int i = 0; i < arraySize; i++) {
@@ -483,7 +483,7 @@ namespace BioLib {
 		/// Print the string representation of each object in an enumerable to stdout along with its index
 		/// </summary>
 		/// <param name="enumerable"></param>
-		/// <param name="logSeverity"></param>
+		/// <param name="logSeverity">Affects how the message will be displayed. Refer to the <see cref="LOG_SEVERITY"/> documentation.</param>
 		public static void Cout(IEnumerable enumerable, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE) {
 			var i = 0;
 			foreach (var item in enumerable) {
@@ -497,7 +497,7 @@ namespace BioLib {
 		/// </summary>
 		/// <param name="array"></param>
 		/// <param name="bytesToDump">The amount of bytes to print</param>
-		/// <param name="logSeverity"></param>
+		/// <param name="logSeverity">Affects how the message will be displayed. Refer to the <see cref="LOG_SEVERITY"/> documentation.</param>
 		public static void Cout(byte[] array, int bytesToDump = 256, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE) {
 			HexDump(array, bytesToDump, logSeverity);
 		}
@@ -508,7 +508,7 @@ namespace BioLib {
 		/// </summary>
 		/// <param name="stream"></param>
 		/// <param name="bytesToDump">The amount of bytes to print</param>
-		/// <param name="logSeverity"></param>
+		/// <param name="logSeverity">Affects how the message will be displayed. Refer to the <see cref="LOG_SEVERITY"/> documentation.</param>
 		public static void Cout(Stream stream, int bytesToDump = 256, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE) {
 			Cout(stream + " @ " + stream.Position + ":", logSeverity);
 
@@ -516,7 +516,7 @@ namespace BioLib {
 		}
 
 		/// <summary>
-		/// Print empty line to stdout
+		/// Prints an empty line to stdout
 		/// </summary>
 		public static void Cout() {
 			Console.WriteLine();
@@ -525,26 +525,45 @@ namespace BioLib {
 		/// <summary>
 		/// Print the string representation of an object to stdout. See <see cref="Cout(string, LOG_SEVERITY)"/>.
 		/// </summary>
-		/// <param name="msg"></param>
-		/// <param name="logSeverity"></param>
+		/// <param name="msg">The message to print</param>
+		/// <param name="logSeverity">Affects how the message will be displayed. Refer to the <see cref="LOG_SEVERITY"/> documentation.</param>
 		public static void Cout(object msg, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE) {
 			Cout(msg == null? "null": msg.ToString(), logSeverity);
+		}
+
+		/// <summary>
+		/// Prints the current time and <paramref name="msg"/> to stdout. See <see cref="Bio.Cout(string, LOG_SEVERITY)"/>
+		/// </summary>
+		/// <param name="msg">The message to print</param>
+		/// <param name="logSeverity">Affects how the message will be displayed. Refer to the <see cref="LOG_SEVERITY"/> documentation.</param>
+		public static void Tout(object msg, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE) {
+			Console.Write(DateTime.Now.ToString("HH:mm:ss.ff") + " | ");
+			Cout(msg, logSeverity);
 		}
 
 		/// <summary>
 		/// Print a debug message.
 		/// This is a convenience method to be used instead of <see cref="Cout(object, LOG_SEVERITY)"/> with severity <see cref="LOG_SEVERITY.DEBUG"/>
 		/// </summary>
-		/// <param name="msg"></param>
+		/// <param name="msg">The message to print</param>
 		public static void Debug(object msg) {
 			Cout(msg, LOG_SEVERITY.DEBUG);
+		}
+
+		/// <summary>
+		/// Print a debug message.
+		/// This is a convenience method to be used instead of <see cref="Cout(object, LOG_SEVERITY)"/> with severity <see cref="LOG_SEVERITY.DEBUG"/>
+		/// </summary>
+		/// <param name="msg">The message(s) to print</param>
+		public static void Debug(params object[] msg) {
+			Cout(string.Join(" ", msg), LOG_SEVERITY.DEBUG);
 		}
 
 		/// <summary>
 		/// Print a warning message.
 		/// This is a convenience method to be used instead of <see cref="Cout(object, LOG_SEVERITY)"/> with severity <see cref="LOG_SEVERITY.WARNING"/>
 		/// </summary>
-		/// <param name="msg"></param>
+		/// <param name="msg">The message to print</param>
 		public static void Warn(object msg) {
 			Cout(msg, LOG_SEVERITY.WARNING);
 		}
@@ -561,7 +580,7 @@ namespace BioLib {
 		/// <summary>
 		/// Print an error message and exit if an exit code is specified
 		/// </summary>
-		/// <param name="msg"></param>
+		/// <param name="msg">The message to print</param>
 		/// <param name="exitCode"></param>
 		private static void Error(object msg, int exitCode = -1) {
 			Cout(msg, LOG_SEVERITY.ERROR);
