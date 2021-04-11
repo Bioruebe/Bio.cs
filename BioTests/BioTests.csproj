@@ -52,6 +52,7 @@
     <Reference Include="System.Core" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BioTests.cs" />
     <Compile Include="ConcatenatedStreamTests.cs" />
     <Compile Include="FileTests.cs" />
     <Compile Include="OffsetStreamTests.cs" />

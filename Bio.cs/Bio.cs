@@ -5,16 +5,30 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security;
+using System.Text;
 
 namespace BioLib {
 	/// <summary>
 	///  Main library
 	/// </summary>
 	public static class Bio {
+		/// <summary>
+		/// If enabled, <see cref="Cout(string, LOG_SEVERITY)"/> calls prepend the current date and time to each message.
+		/// </summary>
+		public static bool CoutPrintTime = false;
+
+		/// <summary>
+		/// If enabled, all messages printed with <see cref="Cout(string, LOG_SEVERITY)"/> are saved internally.<br/>
+		/// Use <see cref="CoutGetLog"/> to retrieve the complete log.
+		/// </summary>
+		public static bool CoutKeepLog = false;
+
 		private const string SEPARATOR = "\n---------------------------------------------------------------------";
+
 		private static readonly Dictionary<string, char> promptSettings = new Dictionary<string, char>();
 		private static readonly Random random = new Random();
 		private static int lastProgress = -1;
+		private static StringBuilder logStringBuilder = new StringBuilder();
 
 		/// <summary>
 		/// Test if a byte array contains a specific <paramref name="pattern"/> at position <paramref name="pos"/> by comparing each byte.
@@ -48,6 +62,16 @@ namespace BioLib {
 		}
 
 		/// <summary>
+		/// Return a random number between <paramref name="min"/> (inclusive) and <paramref name="max"/> (exclusive)
+		/// </summary>
+		/// <param name="min">Minimum value (inclusive)</param>
+		/// <param name="max">Maximum value (exclusive)</param>
+		/// <returns></returns>
+		public static int RandomInt(int min, int max) {
+			return random.Next(min, max);
+		}
+
+		/// <summary>
 		/// Create an array of random numbers
 		/// </summary>
 		/// <typeparam name="T">A numeric data type</typeparam>
@@ -72,6 +96,25 @@ namespace BioLib {
 		/// <returns></returns>
 		public static Stream RandomStream(int length) {
 			return new MemoryStream(RandomArray<byte>(length, byte.MinValue, byte.MaxValue));
+		}
+
+		/// <summary>
+		/// Convert a string of hex values to a bytes object
+		/// </summary>
+		/// <param name="hex">A string of hex values</param>
+		/// <returns></returns>
+		public static byte[] HexToBytes(string hex) {
+			if (hex == null) throw new ArgumentNullException(nameof(hex));
+
+			hex = hex.Replace(" ", "");
+			var length = hex.Length;
+			var bytes = new byte[length / 2];
+
+			for (int i = 0; i < length; i += 2) {
+				bytes[i / 2] = Convert.ToByte(hex.Substring(i, 2), 16);
+			}
+
+			return bytes;
 		}
 
 		/// <summary>
@@ -125,6 +168,17 @@ namespace BioLib {
 			while (File.Exists(path));
 
 			return path;
+		}
+
+		/// <summary>
+		/// Test if a path contains invalid characters
+		/// </summary>
+		/// <param name="path">The path to test</param>
+		/// <returns></returns>
+		public static bool PathContainsInvalidChars(string path) {
+			if (path == null) return false;
+
+			return path.IndexOfAny(Path.GetInvalidPathChars()) > -1;
 		}
 
 		/// <summary>
@@ -197,6 +251,25 @@ namespace BioLib {
 		}
 
 		/// <summary>
+		/// Test whether a path points to an existing file or directory.
+		/// </summary>
+		/// <param name="path">The path to test</param>
+		/// <returns></returns>
+		public static bool PathExists(string path) {
+			return File.Exists(path) || Directory.Exists(path);
+		}
+
+		/// <summary>
+		/// Return the directory part of a given path.<br/><br/>
+		/// Similar to <see cref="Path.GetDirectoryName(string)"/>, but works correctly if the path is an existing directory.
+		/// </summary>
+		/// <param name="path"></param>
+		/// <returns></returns>
+		public static string PathGetDirectory(string path) {
+			return IsDirectory(path)? path: Path.GetDirectoryName(path);
+		}
+
+		/// <summary>
 		/// Open a file and handle exceptions
 		/// </summary>
 		/// <param name="path"></param>
@@ -217,6 +290,32 @@ namespace BioLib {
 		}
 
 		/// <summary>
+		/// Delete a file and handle exceptions
+		/// </summary>
+		/// <param name="path">The path to the file to delete</param>
+		/// <returns>True on success, else false</returns>
+		public static bool FileDelete(string path) {
+			if (!File.Exists(path)) return true;
+
+			try {
+				File.Delete(path);
+				return true;
+			}
+			catch (Exception e) {
+				Error($"Failed to delete file {Path.GetFileName(path)}: {e}", EXITCODE.NONE);
+				return false;
+			}
+		}
+
+		/// <summary>
+		/// Creates the directory structure for a <paramref name="path"/>
+		/// </summary>
+		/// <param name="path">The path to create the directory structure for</param>
+		public static void CreateDirectoryStructure(string path) {
+			Directory.CreateDirectory(PathGetDirectory(path));
+		}
+
+		/// <summary>
 		/// Move a file from <paramref name="from"/> to <paramref name="to"/> making sure the paths are valid.
 		/// If <paramref name="promptId"/> is not null, an overwrite prompt is displayed if <paramref name="to"/> already exists.
 		/// </summary>
@@ -234,7 +333,7 @@ namespace BioLib {
 				if (to == null) return false;
 			}
 
-			Directory.CreateDirectory(Path.GetDirectoryName(to));
+			CreateDirectoryStructure(to);
 
 			try {
 				File.Delete(to);
@@ -246,6 +345,22 @@ namespace BioLib {
 			}
 
 			return true;
+		}
+
+		/// <summary>
+		/// Test whether a path is a directory or not <br/><br/>
+		/// Warning: The path to test <b>must exist</b>!<br/>
+		/// This function accesses the file system and therefore might have an impact on performance if used extensively.
+		/// </summary>
+		/// <param name="path">The path to test</param>
+		/// <returns></returns>
+		public static bool IsDirectory(string path) {
+			try {
+				return File.GetAttributes(path).HasFlag(FileAttributes.Directory);
+			}
+			catch (Exception) {
+				return false;
+			}
 		}
 
 		/// <summary>
@@ -426,6 +541,17 @@ namespace BioLib {
 		}
 
 		/// <summary>
+		/// Print the current time to stdout
+		/// </summary>
+		/// <param name="formatString"></param>
+		public static void PrintTime(string formatString = "yyyy-MM-dd HH:mm:ss:fff") {
+			var msg = DateTime.Now.ToString(formatString) + " ";
+			Console.Write(msg);
+
+			if (CoutKeepLog) logStringBuilder.Append(msg);
+		}
+
+		/// <summary>
 		/// Print a byte array in the form of a hex dump
 		/// </summary>
 		/// <param name="array"></param>
@@ -466,11 +592,13 @@ namespace BioLib {
 			}
 
 			if (logSeverity != LOG_SEVERITY.MESSAGE) msg = string.Format("[{0}] {1}", logSeverity, msg);
+			if (CoutPrintTime) PrintTime();
+			if (CoutKeepLog) logStringBuilder.AppendLine(msg);
 
 			switch (logSeverity) {
 				case LOG_SEVERITY.ERROR:
 				case LOG_SEVERITY.CRITICAL:
-					Console.Error.WriteLine();
+					//Console.Error.WriteLine(msg);
 					Console.WriteLine(msg);
 					break;
 				default:
@@ -537,7 +665,7 @@ namespace BioLib {
 		/// <param name="msg">The message to print</param>
 		/// <param name="logSeverity">Affects how the message will be displayed. Refer to the <see cref="LOG_SEVERITY"/> documentation.</param>
 		public static void Tout(object msg, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE) {
-			Console.Write(DateTime.Now.ToString("HH:mm:ss.ff") + " | ");
+			PrintTime();
 			Cout(msg, logSeverity);
 		}
 
@@ -588,6 +716,15 @@ namespace BioLib {
 			Console.ReadKey(false);
 #endif
 			if (exitCode > -1) Environment.Exit(exitCode);
+		}
+
+		/// <summary>
+		/// Returns a log of all messages printed by <see cref="Cout(object, LOG_SEVERITY)"/>.<br/>
+		/// Requires <see cref="CoutKeepLog"/> option set to true to work.
+		/// </summary>
+		/// <returns></returns>
+		public static string CoutGetLog() {
+			return logStringBuilder.ToString();
 		}
 
 		/// <summary>

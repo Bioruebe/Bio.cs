@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2.0
+
+- Added options `CoutPrintTime` and `CoutKeepLog` to allow global console output configuration
+- Added `RandomInt`, `HexToBytes`, `PrintTime` and `CoutGetLog` functions to main class
+- Added I/O helper functions `PathContainsInvalidChars`, `PathExists`, `PathGetDirectory`, `FileDelete`, `CreateDirectoryStructure` and `IsDirectory`
+
 ## 2.1.0
 
 - Added `ConcatenatedStream` and `OffsetStream` classes
