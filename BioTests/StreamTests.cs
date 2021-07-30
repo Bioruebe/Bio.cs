@@ -367,7 +367,7 @@ namespace BioTests {
 		[TestMethod]
 		[ExpectedException(typeof(ArgumentNullException))]
 		public void Concatenate_Null_ShouldThrowException() {
-			randomStream.Concatenate(null);
+			randomStream.Concatenate((Stream) null);
 		}
 
 		[TestMethod]

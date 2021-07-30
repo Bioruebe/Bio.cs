@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.3.0
+
+- Added `CreateFile` and `FileSetTimes`
+- Added `Concatenate` overload accepting an array of streams to `StreamExtensions`
+- Changed `Tout`: the function can now be called without parameters
+
 ## 2.2.0
 
 - Added options `CoutPrintTime` and `CoutKeepLog` to allow global console output configuration

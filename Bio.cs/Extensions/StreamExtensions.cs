@@ -216,6 +216,20 @@ namespace BioLib.Streams {
 		}
 
         /// <summary>
+        /// Appends <paramref name="other"/> to this stream. This is a convenience function, which creates a new instance of <see cref="ConcatenatedStream"/>.<br/><br/>
+        /// <b>Warning</b>: Actions performed on the <see cref="ConcatenatedStream"/> modify the underlying streams directly! Any changes to <paramref name="stream"/> or <paramref name="other"/> can lead to unspecified behaviour! Make sure to read the documentation of <see cref="ConcatenatedStream"/>.
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <param name="other"></param>
+        /// <returns></returns>
+        public static ConcatenatedStream Concatenate(this Stream stream, List<Stream> other) {
+            if (other == null) throw new ArgumentNullException(nameof(other));
+            other.Insert(0, stream);
+
+            return new ConcatenatedStream(other);
+        }
+
+        /// <summary>
         /// Find the given <paramref name="pattern"/> in the stream and set the stream's position to the position at which it was found.
         /// If the <paramref name="pattern"/> was not found, the position does not change.
         /// <br/><br/>
@@ -306,16 +320,9 @@ namespace BioLib.Streams {
         /// <param name="copyFunction"></param>
         /// <returns>True if the operation succeeded, otherwise false. Exceptions might be thrown depending on the <paramref name="copyFunction"/>.</returns>
         public static bool WriteToFile(this Stream input, string path, string promptId = null, Action<Stream, Stream> copyFunction = null) {
-            if (promptId != null) path = Bio.EnsureFileDoesNotExist(path, promptId);
-            if (path == null) return false;
             if (copyFunction == null) copyFunction = (inputStream, outputStream) => inputStream.Copy(outputStream);
-
-            var fileMode = FileMode.CreateNew;
-            Directory.CreateDirectory(Path.GetDirectoryName(path));
-
-            if (File.Exists(path)) fileMode = FileMode.Create;
             
-            using (var fileStream = new FileStream(path, fileMode)) {
+            using (var fileStream = Bio.CreateFile(path, promptId)) {
                 input.KeepPosition(() => copyFunction(input, fileStream));
             }
 

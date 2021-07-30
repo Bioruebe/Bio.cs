@@ -118,6 +118,25 @@ namespace BioLib {
 		}
 
 		/// <summary>
+		/// Creates a file at the given path and returns a new <see cref="FileStream"/>.
+		/// A prompt will be shown if the file already exists. The directory structure will be created if necessary.
+		/// </summary>
+		/// <param name="path">The path to the file</param>
+		/// <param name="promptId">A unique ID for the prompt, refer to <see cref="Prompt(string, string, PromptOptions)"/> for more information.</param>
+		/// <returns></returns>
+		public static FileStream CreateFile(string path, string promptId) {
+			if (promptId != null) path = EnsureFileDoesNotExist(path, promptId);
+			if (path == null) return null;
+			
+			var fileMode = FileMode.CreateNew;
+			CreateDirectoryStructure(path);
+
+			if (File.Exists(path)) fileMode = FileMode.Create;
+
+			return new FileStream(path, fileMode);
+		}
+
+		/// <summary>
 		/// Convenience function. Ensures a path is valid and does not exist.
 		/// If the path already exists, a prompt is displayed asking the user to overwrite or rename.
 		/// </summary>
@@ -290,32 +309,6 @@ namespace BioLib {
 		}
 
 		/// <summary>
-		/// Delete a file and handle exceptions
-		/// </summary>
-		/// <param name="path">The path to the file to delete</param>
-		/// <returns>True on success, else false</returns>
-		public static bool FileDelete(string path) {
-			if (!File.Exists(path)) return true;
-
-			try {
-				File.Delete(path);
-				return true;
-			}
-			catch (Exception e) {
-				Error($"Failed to delete file {Path.GetFileName(path)}: {e}", EXITCODE.NONE);
-				return false;
-			}
-		}
-
-		/// <summary>
-		/// Creates the directory structure for a <paramref name="path"/>
-		/// </summary>
-		/// <param name="path">The path to create the directory structure for</param>
-		public static void CreateDirectoryStructure(string path) {
-			Directory.CreateDirectory(PathGetDirectory(path));
-		}
-
-		/// <summary>
 		/// Move a file from <paramref name="from"/> to <paramref name="to"/> making sure the paths are valid.
 		/// If <paramref name="promptId"/> is not null, an overwrite prompt is displayed if <paramref name="to"/> already exists.
 		/// </summary>
@@ -345,6 +338,45 @@ namespace BioLib {
 			}
 
 			return true;
+		}
+
+		/// <summary>
+		/// Delete a file and handle exceptions
+		/// </summary>
+		/// <param name="path">The path to the file to delete</param>
+		/// <returns>True on success, else false</returns>
+		public static bool FileDelete(string path) {
+			if (!File.Exists(path)) return true;
+
+			try {
+				File.Delete(path);
+				return true;
+			}
+			catch (Exception e) {
+				Error($"Failed to delete file {Path.GetFileName(path)}: {e}", EXITCODE.NONE);
+				return false;
+			}
+		}
+
+		/// <summary>
+		/// Shortcut function to set creation, last access and modification time of a file 
+		/// </summary>
+		/// <param name="filePath">The file path</param>
+		/// <param name="creationTime">Creation time to set</param>
+		/// <param name="accessTime">Access time to set</param>
+		/// <param name="writeTime">Write time to set</param>
+		public static void FileSetTimes(string filePath, DateTime? creationTime = null, DateTime? accessTime = null, DateTime? writeTime = null) {
+			if (creationTime != null) File.SetCreationTime(filePath, (DateTime) creationTime);
+			if (accessTime != null) File.SetLastAccessTime(filePath, (DateTime) accessTime);
+			if (writeTime != null) File.SetLastWriteTime(filePath, (DateTime) writeTime);
+		}
+
+		/// <summary>
+		/// Creates the directory structure for a <paramref name="path"/>
+		/// </summary>
+		/// <param name="path">The path to create the directory structure for</param>
+		public static void CreateDirectoryStructure(string path) {
+			Directory.CreateDirectory(PathGetDirectory(path));
 		}
 
 		/// <summary>
@@ -657,6 +689,13 @@ namespace BioLib {
 		/// <param name="logSeverity">Affects how the message will be displayed. Refer to the <see cref="LOG_SEVERITY"/> documentation.</param>
 		public static void Cout(object msg, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE) {
 			Cout(msg == null? "null": msg.ToString(), logSeverity);
+		}
+
+		/// <summary>
+		/// Prints the current time to stdout. Alias for <see cref="PrintTime(string)"/>/>
+		/// </summary>
+		public static void Tout() {
+			PrintTime();
 		}
 
 		/// <summary>
