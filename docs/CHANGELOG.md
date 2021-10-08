@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.3.1
+
+- Fixed crash if file names contain certain special characters
+- Fixed crash in `Progress` and `Cout` functions if message contains certain special characters
+
 ## 2.3.0
 
 - Added `CreateFile` and `FileSetTimes`

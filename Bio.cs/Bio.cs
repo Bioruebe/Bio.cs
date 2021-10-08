@@ -181,7 +181,7 @@ namespace BioLib {
 			
 			var i = 2;
 			do {
-				path = Path.Combine(directory, string.Format($"{fileNameWithoutExtension} ({i}){fileExtension}"));
+				path = Path.Combine(directory, $"{fileNameWithoutExtension} ({i}){fileExtension}");
 				i++;
 			}
 			while (File.Exists(path));
@@ -419,7 +419,7 @@ namespace BioLib {
 		/// <param name="usage">Program usage information</param>
 		/// <param name="license">Program license</param>
 		public static void Header(string name, string version, string year, string description = "", string usage = "", string license = "BSD 3-Clause") {
-			var header = string.Format($"{name} by Bioruebe (https://bioruebe.com), {year}, Version {version}, Released under a {license} style license\n\n{description}");
+			var header = $"{name} by Bioruebe (https://bioruebe.com), {year}, Version {version}, Released under a {license} style license\n\n{description}";
 			if (usage != null) header += "\n\nUsage: " + GetProgramName() + " " + usage;
 			
 			Console.WriteLine(header + "\n" + SEPARATOR);
@@ -513,7 +513,7 @@ namespace BioLib {
 		/// <param name="current"></param>
 		/// <param name="total"></param>
 		public static void Progress(string msg, int current, int total) {
-			Cout(string.Format($"[{current}/{total}] {msg}"));
+			Cout($"[{current}/{total}] {msg}");
 		}
 
 		/// <summary>
@@ -532,7 +532,7 @@ namespace BioLib {
 
 			lastProgress = current;
 
-			Cout(string.Format($"[{current}/{total}] {msg}"));
+			Cout($"[{current}/{total}] {msg}");
 		}
 
 		/// <summary>
@@ -623,7 +623,7 @@ namespace BioLib {
 				msg = msg.Substring(1);
 			}
 
-			if (logSeverity != LOG_SEVERITY.MESSAGE) msg = string.Format("[{0}] {1}", logSeverity, msg);
+			if (logSeverity != LOG_SEVERITY.MESSAGE) msg = $"[{logSeverity}] {msg}";
 			if (CoutPrintTime) PrintTime();
 			if (CoutKeepLog) logStringBuilder.AppendLine(msg);
 
