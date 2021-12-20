@@ -104,5 +104,20 @@ namespace BioTests {
 		public void GetSafeOutputPath_Valid() {
 			Assert.AreEqual(combinedPath, Bio.GetSafeOutputPath(BASE_PATH, FILE_NAME));
 		}
+
+		[TestMethod]
+		public void FileSetTimes_NonExistantFile() {
+			Assert.AreEqual(false, Bio.FileSetTimes(ABSOLUTE_FILE, DateTime.Now));
+		}
+
+		[TestMethod]
+		public void FileSetTimes_InvalidFilePath() {
+			Assert.AreEqual(false, Bio.FileSetTimes(INVALID_PATH, DateTime.Now));
+		}
+
+		[TestMethod]
+		public void FileSetTimes_Directory() {
+			Assert.AreEqual(false, Bio.FileSetTimes(BASE_PATH, DateTime.Now));
+		}
 	}
 }

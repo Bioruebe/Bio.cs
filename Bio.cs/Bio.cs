@@ -365,10 +365,15 @@ namespace BioLib {
 		/// <param name="creationTime">Creation time to set</param>
 		/// <param name="accessTime">Access time to set</param>
 		/// <param name="writeTime">Write time to set</param>
-		public static void FileSetTimes(string filePath, DateTime? creationTime = null, DateTime? accessTime = null, DateTime? writeTime = null) {
+		/// <returns>True if the operation succeeded, false if the file does not exist</returns>
+		public static bool FileSetTimes(string filePath, DateTime? creationTime = null, DateTime? accessTime = null, DateTime? writeTime = null) {
+			if (!File.Exists(filePath)) return false;
+
 			if (creationTime != null) File.SetCreationTime(filePath, (DateTime) creationTime);
 			if (accessTime != null) File.SetLastAccessTime(filePath, (DateTime) accessTime);
 			if (writeTime != null) File.SetLastWriteTime(filePath, (DateTime) writeTime);
+
+			return true;
 		}
 
 		/// <summary>

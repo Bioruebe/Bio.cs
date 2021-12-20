@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.3.2
+
+- Fixed crash in `FileSetTimes` if the file path is invalid
+
 ## 2.3.1
 
 - Fixed crash if file names contain certain special characters
