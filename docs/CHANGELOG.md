@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.4.0
+
+- Added `BytesToString`, `PathAppendSeparator`, `PathRemoveLeadingSeparator` and `PathRemoveTrailingSeparator`
+- Added `IsAtStart`, `IsAtEnd`, `FindAll` and `ToUtf8String` to `StreamExtensions`
+- Added `StringExtensions` class
+- Changed `CreateFile`: made `promptId` optional
+- Changed `PrintNumbers`: if the array is empty, `<empty>` is now displayed
+- Changed `HexDump` to display a message, if the end of the stream was reached
+- Changed `StreamExtensions.WriteToFile` to always write the whole stream to file, ignoring the current position; added `WriteToFileRelative` to save the content from the current position
+- Fixed `PathReplaceInvalidChars` and `PathReplaceInvalidFileNameChars`: control characters are now removed
+- Fixed `PathGetDirectory` not working correctly for relative paths
+
 ## 2.3.2
 
 - Fixed crash in `FileSetTimes` if the file path is invalid

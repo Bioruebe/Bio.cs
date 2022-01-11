@@ -5,7 +5,7 @@
 		<MinClientVersion>1.5</MinClientVersion>
 		<PackageId>Bioruebe.BioLib</PackageId>
 		<Product>BioLib</Product>
-		<Version>2.3.2</Version>
+		<Version>2.4.0</Version>
 		<Authors>Bioruebe</Authors>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageProjectUrl>https://github.com/Bioruebe/Bio.cs</PackageProjectUrl>

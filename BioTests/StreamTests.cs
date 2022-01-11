@@ -38,6 +38,24 @@ namespace BioTests {
 		}
 
 		[TestMethod]
+		public void IsAtStart() {
+			Assert.IsTrue(nullBytesStream.IsAtStart());
+			nullBytesStream.Position = 10;
+			Assert.IsFalse(nullBytesStream.IsAtStart());
+			nullBytesStream.MoveToEnd();
+			Assert.IsFalse(nullBytesStream.IsAtStart());
+		}
+
+		[TestMethod]
+		public void IsAtEnd() {
+			Assert.IsFalse(nullBytesStream.IsAtEnd());
+			nullBytesStream.Position = 10;
+			Assert.IsFalse(nullBytesStream.IsAtEnd());
+			nullBytesStream.MoveToEnd();
+			Assert.IsTrue(nullBytesStream.IsAtEnd());
+		}
+
+		[TestMethod]
 		public void MoveToStart() {
 			nullBytesStream.Position = 10;
 			Assert.AreEqual(10, nullBytesStream.Position);
@@ -451,6 +469,37 @@ namespace BioTests {
 
 			limit = (int)(STREAM_LENGTH * 0.1);
 			Assert.IsTrue(searchStream.FindBackwards(searchNeedle, limit));
+		}
+
+		[TestMethod]
+		public void SearchAll() {
+			var multiSearchStream = new MemoryStream(STREAM_LENGTH);
+			var positions = new List<long>() { 20, 100, 256 };
+
+			foreach (var position in positions) {
+				multiSearchStream.Position = position;
+				multiSearchStream.Write(searchNeedle, 0, searchNeedle.Length);
+			}
+
+			var streamPosition = multiSearchStream.Position;
+			var result = multiSearchStream.FindAll(searchNeedle);
+			Assert.AreEqual(positions.Count, result.Count);
+			Assert.AreEqual(streamPosition, multiSearchStream.Position);
+			Assert.IsTrue(Enumerable.SequenceEqual(positions, result));
+		}
+
+		[TestMethod]
+		public void SearchAll_SingleBytePattern() {
+			var result = nullBytesStream.FindAll(new byte[] { 0 });
+			Assert.AreEqual(nullBytesStream.Length, result.Count);
+			Assert.AreEqual(0, nullBytesStream.Position);
+		}
+
+		[TestMethod]
+		public void SearchAll_NoMatches() {
+			var result = nullBytesStream.FindAll(searchNeedle);
+			Assert.AreEqual(0, result.Count);
+			Assert.AreEqual(0, nullBytesStream.Position);
 		}
 
 		[TestMethod]

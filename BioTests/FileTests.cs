@@ -11,6 +11,8 @@ namespace BioTests {
 		private const string PATH_TRAVERSAL_PATH = @".\..\..\..\file.txt";
 		private const string RELATIVE_FILE = @".\file.txt";
 		private const string ABSOLUTE_FILE = @"C:\file.txt";
+		private const string ABSOLUTE_DIRECTORY = @"C:\Users";
+		private const string RELATIVE_DIRECTORY = @"\src";
 		private const string INVALID_PATH = @"C:\<file>.txt";
 		private const string INVALID_PATH_FILE_NAME = @"C:\file?.txt";
 		private const string FILE_NAME = "file.txt";
@@ -75,6 +77,46 @@ namespace BioTests {
 		[TestMethod]
 		public void PathReplaceInvalidChars_InvalidFileName() {
 			Assert.AreEqual(ABSOLUTE_FILE, Bio.PathReplaceInvalidChars(INVALID_PATH_FILE_NAME, ""));
+		}
+
+		[TestMethod]
+		public void PathRemoveLeadingSeparator_Null() {
+			Assert.AreEqual(null, Bio.PathRemoveLeadingSeparator(null));
+		}
+
+		[TestMethod]
+		public void PathRemoveLeadingSeparator() {
+			Assert.AreEqual(RELATIVE_DIRECTORY.Substring(1), Bio.PathRemoveLeadingSeparator(RELATIVE_DIRECTORY));
+		}
+
+		[TestMethod]
+		public void PathRemoveTrailingSeparator_Null() {
+			Assert.AreEqual(null, Bio.PathRemoveTrailingSeparator(null));
+		}
+
+		[TestMethod]
+		public void PathRemoveTrailingSeparator() {
+			Assert.AreEqual(ABSOLUTE_DIRECTORY, Bio.PathRemoveTrailingSeparator(ABSOLUTE_DIRECTORY + "\\"));
+		}
+
+		[TestMethod]
+		public void PathAppendSeparator_Null() {
+			Assert.AreEqual(null, Bio.PathAppendSeparator(null));
+		}
+
+		[TestMethod]
+		public void PathAppendSeparator() {
+			Assert.AreEqual(ABSOLUTE_DIRECTORY + "\\", Bio.PathAppendSeparator(ABSOLUTE_DIRECTORY));
+		}
+
+		[TestMethod]
+		public void PathAppendSeparator_NoAppendNecessary() {
+			Assert.AreEqual(ABSOLUTE_DIRECTORY + "\\", Bio.PathAppendSeparator(ABSOLUTE_DIRECTORY + "\\"));
+		}
+
+		[TestMethod]
+		public void PathAppendSeparator_FilePath_ShouldNotAppendAnything() {
+			Assert.AreEqual(ABSOLUTE_FILE, Bio.PathAppendSeparator(ABSOLUTE_FILE));
 		}
 
 		[TestMethod]

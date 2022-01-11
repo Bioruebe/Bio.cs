@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Security;
 using System.Text;
+using BioLib.Strings;
 
 namespace BioLib {
 	/// <summary>
@@ -118,13 +119,22 @@ namespace BioLib {
 		}
 
 		/// <summary>
+		/// Converts a byte array to an UTF-8 string
+		/// </summary>
+		/// <param name="bytes">The bytes to convert</param>
+		/// <returns></returns>
+		public static string BytesToString(byte[] bytes) {
+			return Encoding.UTF8.GetString(bytes);
+		}
+
+		/// <summary>
 		/// Creates a file at the given path and returns a new <see cref="FileStream"/>.
 		/// A prompt will be shown if the file already exists. The directory structure will be created if necessary.
 		/// </summary>
 		/// <param name="path">The path to the file</param>
 		/// <param name="promptId">A unique ID for the prompt, refer to <see cref="Prompt(string, string, PromptOptions)"/> for more information.</param>
 		/// <returns></returns>
-		public static FileStream CreateFile(string path, string promptId) {
+		public static FileStream CreateFile(string path, string promptId = null) {
 			if (promptId != null) path = EnsureFileDoesNotExist(path, promptId);
 			if (path == null) return null;
 			
@@ -211,6 +221,7 @@ namespace BioLib {
 			if (path == null) throw new ArgumentNullException(nameof(path));
 			if (by == null) throw new ArgumentNullException(nameof(by));
 
+			path = path.RemoveControlCharacters();
 			path = string.Join(by, path.Split(Path.GetInvalidPathChars()));
 			if (!isDirectory) path = PathReplaceInvalidFileNameChars(path, by);
 
@@ -229,6 +240,7 @@ namespace BioLib {
 			if (by == null) throw new ArgumentNullException(nameof(by));
 
 			var fileName = Path.GetFileName(path);
+			fileName = fileName.RemoveControlCharacters();
 			fileName = string.Join(by, fileName.Split(Path.GetInvalidFileNameChars()));
 			return Path.Combine(Path.GetDirectoryName(path), fileName);
 		}
@@ -285,7 +297,40 @@ namespace BioLib {
 		/// <param name="path"></param>
 		/// <returns></returns>
 		public static string PathGetDirectory(string path) {
+			path = Path.GetFullPath(path);
 			return IsDirectory(path)? path: Path.GetDirectoryName(path);
+		}
+
+		/// <summary>
+		/// Append a path separator character to a directory path if necessary
+		/// </summary>
+		/// <param name="path"></param>
+		/// <returns></returns>
+		public static string PathAppendSeparator(string path) {
+			if (path == null) return null;
+			if (path.EndsWith(Path.DirectorySeparatorChar.ToString()) || !IsDirectory(path)) return path;
+
+			return path + Path.DirectorySeparatorChar;
+		}
+
+		/// <summary>
+		/// Remove path separator characters from the beginning of the <paramref name="path"/>
+		/// </summary>
+		/// <param name="path"></param>
+		/// <returns></returns>
+		public static string PathRemoveLeadingSeparator(string path) {
+			if (path == null) return null;
+			return path.TrimStart(new char[] { Path.DirectorySeparatorChar });
+		}
+
+		/// <summary>
+		/// Remove path separator characters from the end of the <paramref name="path"/>
+		/// </summary>
+		/// <param name="path"></param>
+		/// <returns></returns>
+		public static string PathRemoveTrailingSeparator(string path) {
+			if (path == null) return null;
+			return path.TrimEnd(new char[] { Path.DirectorySeparatorChar });
 		}
 
 		/// <summary>
@@ -558,6 +603,12 @@ namespace BioLib {
 		/// <param name="separatorPosition">Position at which a larger gap should be inserted</param>
 		/// <param name="logSeverity">The <see cref="LOG_SEVERITY"/> for the output</param>
 		public static void PrintNumbers(byte[] array, int endIndex = -1, string formatString = "", string formatStringOffset = "", uint valuesPerLine = 16, uint separatorPosition = 8, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE) {
+			if (array.Length < 1) {
+				Cout();
+				Cout("<empty>\n");
+				return;
+			}
+			
 			var output = "";
 			endIndex = endIndex < 0? array.Length: Clamp(endIndex, 0, array.Length);
 
@@ -601,14 +652,16 @@ namespace BioLib {
 		/// <summary>
 		/// Print a stream's content in the form of a hex dump
 		/// </summary>
-		/// <param name="stream"></param>
-		/// <param name="bytesToDump"></param>
+		/// <param name="stream">The stream to dump</param>
+		/// <param name="bytesToDump">The amount of bytes to dump. The actual output might be less than this number, if the streams end was reached.</param>
 		/// <param name="logSeverity"></param>
 		public static void HexDump(Stream stream, int bytesToDump, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE) {
-			bytesToDump = Clamp(bytesToDump, 0, (int) stream.Length);
+			var bytesLeft = stream.Length - stream.Position;
+			bytesToDump = Clamp(bytesToDump, 0, (int) bytesLeft);
 			byte[] buffer = new byte[bytesToDump];
 			stream.KeepPosition(() => stream.Read(buffer, 0, bytesToDump));
 			HexDump(buffer, -1, logSeverity);
+			if (stream.IsAtEnd()) Cout("-- end of stream reached\n");
 		}
 
 		/// <summary>

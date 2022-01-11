@@ -63,6 +63,24 @@ namespace BioLib.Streams {
         }
 
         /// <summary>
+        /// Check if the stream's position is zero
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <returns>True if the stream's position is zero, otherwise false</returns>
+        public static bool IsAtStart(this Stream stream) {
+            return stream.Position == 0;
+		}
+
+        /// <summary>
+        /// Check if the stream's position is the end of the stream
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <returns>True if the stream's position is the end of the stream, otherwise false</returns>
+        public static bool IsAtEnd(this Stream stream) {
+            return stream.Position == stream.Length;
+        }
+
+        /// <summary>
         /// Move to the beginning of the stream
         /// </summary>
         /// <param name="stream"></param>
@@ -312,7 +330,32 @@ namespace BioLib.Streams {
         }
 
         /// <summary>
-        /// Write the content of a stream to a file. Does not advance the stream's position.
+        /// Find all occurences of the given <paramref name="pattern"/> in the stream. The stream's position will not be modified.
+        /// <br/><br/>
+        /// <b>Warning</b>: This function uses naive search, reading and comparing a single byte at a time. This can be very slow for big streams!
+        /// Only use this function if you expect the pattern to be found and/or set the <paramref name="endOffset"/>. Otherwise your programm may freeze.
+        /// </summary>
+        /// <param name="stream">The search stream</param>
+        /// <param name="pattern">The byte pattern to search for</param>
+        /// <param name="endOffset">An optional index at which the search should stop, defaults to the end of the stream</param>
+        /// <returns>A list of positions at which the pattern was found</returns>
+        public static List<long> FindAll(this Stream stream, byte[] pattern, long endOffset = -1) {
+            var offsets = new List<long>();
+
+            stream.KeepPosition(() => {
+                stream.MoveToStart();
+
+                while (stream.Find(pattern, endOffset)) {
+                    offsets.Add(stream.Position);
+                    if (!stream.Skip(pattern.Length)) break;
+				}
+            });
+
+            return offsets;
+		}
+
+        /// <summary>
+        /// Write the complete content of a stream to a file. Does not advance the stream's position.
         /// </summary>
         /// <param name="input"></param>
         /// <param name="path">Path to the file</param>
@@ -320,6 +363,23 @@ namespace BioLib.Streams {
         /// <param name="copyFunction"></param>
         /// <returns>True if the operation succeeded, otherwise false. Exceptions might be thrown depending on the <paramref name="copyFunction"/>.</returns>
         public static bool WriteToFile(this Stream input, string path, string promptId = null, Action<Stream, Stream> copyFunction = null) {
+            if (copyFunction == null) copyFunction = (inputStream, outputStream) => inputStream.Copy(outputStream);
+
+            return WriteToFileRelative(input, path, promptId, (inputStream, outputStream) => {
+                input.MoveToStart();
+                copyFunction(input, outputStream);
+            });
+        }
+
+        /// <summary>
+        /// Write the content of a stream (from the current position to the end) to a file. Does not advance the stream's position.
+        /// </summary>
+        /// <param name="input"></param>
+        /// <param name="path">Path to the file</param>
+        /// <param name="promptId"></param>
+        /// <param name="copyFunction"></param>
+        /// <returns>True if the operation succeeded, otherwise false. Exceptions might be thrown depending on the <paramref name="copyFunction"/>.</returns>
+        public static bool WriteToFileRelative(this Stream input, string path, string promptId = null, Action<Stream, Stream> copyFunction = null) {
             if (copyFunction == null) copyFunction = (inputStream, outputStream) => inputStream.Copy(outputStream);
             
             using (var fileStream = Bio.CreateFile(path, promptId)) {
@@ -337,5 +397,14 @@ namespace BioLib.Streams {
         public static byte[] ToByteArray(this Stream stream) {
             return stream.Copy().ToArray();
         }
+
+        /// <summary>
+        /// Converts the stream to an UTF-8 string
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <returns>An UTF-8 string</returns>
+        public static string ToUtf8String(this Stream stream) {
+            return Bio.BytesToString(stream.ToByteArray());
+		}
     }
 }
