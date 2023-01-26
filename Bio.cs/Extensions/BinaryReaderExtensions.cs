@@ -10,6 +10,27 @@ namespace BioLib.Streams {
 	/// </summary>
 	public static class BinaryReaderExtensions {
 		/// <summary>
+		/// Skip a string with its length stored as an 8-bit prefix before the string content
+		/// </summary>
+		/// <param name="binaryReader"></param>
+		public static void Skip8BitPrefixedString(this BinaryReader binaryReader) {
+			binaryReader.Read8BitPrefixedString();
+		}
+
+		/// <summary>
+		/// Read a string with its length stored as an 8-bit prefix before the string content
+		/// </summary>
+		/// <param name="binaryReader"></param>
+		/// <param name="utf8">Interpret the string as UTF-8; otherwise ASCII is used</param>
+		/// <returns></returns>
+		public static string Read8BitPrefixedString(this BinaryReader binaryReader, bool utf8 = true) {
+			var length = binaryReader.ReadByte();
+			var buffer = new byte[length];
+			binaryReader.Read(buffer, 0, length);
+			return Bio.BytesToString(buffer, utf8);
+		}
+
+		/// <summary>
 		/// Read a null-terminated ASCII or UTF-8 string
 		/// </summary>
 		/// <param name="binaryReader"></param>
@@ -44,7 +65,7 @@ namespace BioLib.Streams {
 				if (!binaryReader.BaseStream.Skip(-2)) break;
 			}
 
-			var encoding = utf8 ? Encoding.UTF8 : Encoding.ASCII;
+			var encoding = utf8? Encoding.UTF8: Encoding.ASCII;
 			return encoding.GetString(bytes.ToArray());
 		}
 	}

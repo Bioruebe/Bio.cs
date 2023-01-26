@@ -12,8 +12,8 @@ namespace BioTests {
 	public class StreamTests {
 		private const int STREAM_LENGTH = 1024;
 
-		private static byte[] searchHaystack = Encoding.ASCII.GetBytes("ABRAGADABRAKADABRA");
-		private static byte[] searchNeedle = Encoding.ASCII.GetBytes("ABRAKADABRA");
+		private static readonly byte[] searchHaystack = Encoding.ASCII.GetBytes("ABRAGADABRAKADABRA");
+		private static readonly byte[] searchNeedle = Encoding.ASCII.GetBytes("ABRAKADABRA");
 		private static Stream emptyStream;
 		private static Stream nullBytesStream;
 		private static Stream searchStream;
@@ -397,7 +397,7 @@ namespace BioTests {
 		[TestMethod]
 		[ExpectedException(typeof(ArgumentNullException))]
 		public void Search_PatternIsNull_ShouldThrowException() {
-			nullBytesStream.Find(null);
+			nullBytesStream.Find((byte[]) null);
 		}
 
 		[TestMethod]

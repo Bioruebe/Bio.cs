@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.5.0
+
+- Added `FileCreate`, `FileFindBySubDirectory`, `ProgressPartial`, `Repeat`, `RandomByteArray` and `Xor`
+- Added `Debug` overload to pretty-print byte arrays
+- Added `MISSING_FILE` exitcode
+- Added `Read8BitPrefixedString` and `Skip8BitPrefixedString` to `BinaryReaderExtensions`
+- Added `RemainingLength`, `Back`, `IsExecutable` and `Matches` to `StreamExtensions`
+- Added `Find` overload, which accepts a string pattern, to `StreamExtensions`
+- Changed `BytesToString`:
+  - Added parameter to specify encoding
+  - Added parameter to ignore trailing zero bytes
+- Changed `Cout`: added parameter to prevent appending a newline character
+- Fixed `Cout`: some messages with a `DEBUG` log severity were printed in release version
+- Fixed `Debug` without parameters printing text instead of a raw newline
+- Fixed crash in `StreamExtensions.WriteToFileRelative`
+
 ## 2.4.0
 
 - Added `BytesToString`, `PathAppendSeparator`, `PathRemoveLeadingSeparator` and `PathRemoveTrailingSeparator`

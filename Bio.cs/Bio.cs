@@ -14,12 +14,12 @@ namespace BioLib {
 	/// </summary>
 	public static class Bio {
 		/// <summary>
-		/// If enabled, <see cref="Cout(string, LOG_SEVERITY)"/> calls prepend the current date and time to each message.
+		/// If enabled, <see cref="Cout(string, LOG_SEVERITY, bool)"/> calls prepend the current date and time to each message.
 		/// </summary>
 		public static bool CoutPrintTime = false;
 
 		/// <summary>
-		/// If enabled, all messages printed with <see cref="Cout(string, LOG_SEVERITY)"/> are saved internally.<br/>
+		/// If enabled, all messages printed with <see cref="Cout(string, LOG_SEVERITY, bool)"/> are saved internally.<br/>
 		/// Use <see cref="CoutGetLog"/> to retrieve the complete log.
 		/// </summary>
 		public static bool CoutKeepLog = false;
@@ -29,7 +29,7 @@ namespace BioLib {
 		private static readonly Dictionary<string, char> promptSettings = new Dictionary<string, char>();
 		private static readonly Random random = new Random();
 		private static int lastProgress = -1;
-		private static StringBuilder logStringBuilder = new StringBuilder();
+		private static readonly StringBuilder logStringBuilder = new StringBuilder();
 
 		/// <summary>
 		/// Test if a byte array contains a specific <paramref name="pattern"/> at position <paramref name="pos"/> by comparing each byte.
@@ -46,6 +46,17 @@ namespace BioLib {
 			}
 
 			return true;
+		}
+
+		/// <summary>
+		/// Executes an <paramref name="action"/> N <paramref name="times"/>
+		/// </summary>
+		/// <param name="action">The action to call</param>
+		/// <param name="times">The number of executions</param>
+		public static void Repeat(Action action, int times) {
+			for (var i = 0; i < times; i++) {
+				action();
+			}
 		}
 
 		/// <summary>
@@ -79,7 +90,7 @@ namespace BioLib {
 		/// <param name="arraySize">The amount of values to generate</param>
 		/// <param name="min">Minimum value for each number (inclusive)</param>
 		/// <param name="max">Maximum value for each number (inclusive)</param>
-		/// <returns></returns>
+		/// <returns>A random array of the specified type</returns>
 		public static T[] RandomArray<T>(int arraySize, int min = 0, int max = int.MaxValue) {
 			var array = new T[arraySize];
 
@@ -91,12 +102,23 @@ namespace BioLib {
 		}
 
 		/// <summary>
+		/// Create a random byte array
+		/// </summary>
+		/// <param name="arraySize">The amount of values to generate</param>
+		/// <param name="min">Minimum value for each number (inclusive)</param>
+		/// <param name="max">Maximum value for each number (inclusive)</param>
+		/// <returns>A random byte array</returns>
+		public static byte[] RandomByteArray(int arraySize, byte min = 0, byte max = byte.MaxValue) {
+			return RandomArray<byte>(arraySize, min, max);
+		}
+
+		/// <summary>
 		/// Create a <see cref="MemoryStream"/> filled with random bytes
 		/// </summary>
 		/// <param name="length"></param>
 		/// <returns></returns>
 		public static Stream RandomStream(int length) {
-			return new MemoryStream(RandomArray<byte>(length, byte.MinValue, byte.MaxValue));
+			return new MemoryStream(RandomByteArray(length));
 		}
 
 		/// <summary>
@@ -122,9 +144,34 @@ namespace BioLib {
 		/// Converts a byte array to an UTF-8 string
 		/// </summary>
 		/// <param name="bytes">The bytes to convert</param>
+		/// <param name="utf8">Use UTF-8 instead of ASCII encoding</param>
+		/// <param name="ignoreTrailingNullBytes">If true, any null bytes at the end of the buffer are ignored</param>
 		/// <returns></returns>
-		public static string BytesToString(byte[] bytes) {
-			return Encoding.UTF8.GetString(bytes);
+		public static string BytesToString(byte[] bytes, bool utf8 = true, bool ignoreTrailingNullBytes = false) {
+			var encoding = utf8? Encoding.UTF8: Encoding.ASCII;
+
+			int lastIndex = ignoreTrailingNullBytes? Array.FindLastIndex(bytes, b => b != 0) + 1: bytes.Length;
+
+			return encoding.GetString(bytes, 0, lastIndex);
+		}
+
+		/// <summary>
+		/// Perform a XOR operation on two byte arrays
+		/// </summary>
+		/// <param name="bytesA">The first byte array</param>
+		/// <param name="bytesB">The second byte array</param>
+		/// <returns>A new byte array with the result of <paramref name="bytesA"/> XOR <paramref name="bytesB"/></returns>
+		public static byte[] Xor(byte[] bytesA, byte[] bytesB) {
+			var size = bytesA.Length;
+			if (bytesB.Length != size) throw new ArgumentException("The byte arrays must be of the same length.");
+
+			var output = new byte[size];
+
+			for (var i = 0; i < size; i++) {
+				output[i] = (byte) (bytesA[i] ^ bytesB[i]);
+			}
+
+			return output;
 		}
 
 		/// <summary>
@@ -180,7 +227,7 @@ namespace BioLib {
 
 		/// <summary>
 		/// Rename a file Windows Explorer style (by appending ' (&lt;number&gt;)').
-		/// This function ensures to only return a path, which does not already exist.
+		/// This function ensures to return a path, which does not exist already.
 		/// </summary>
 		/// <param name="path"></param>
 		/// <returns></returns>
@@ -334,6 +381,17 @@ namespace BioLib {
 		}
 
 		/// <summary>
+		/// Create a new or overwrite an existing file.
+		/// Creates the directory structure if it doesn't exist.
+		/// </summary>
+		/// <param name="path">The file path</param>
+		/// <returns></returns>
+		public static FileStream FileCreate(string path) {
+			CreateDirectoryStructure(path);
+			return FileOpen(path, FileMode.Create);
+		}
+
+		/// <summary>
 		/// Open a file and handle exceptions
 		/// </summary>
 		/// <param name="path"></param>
@@ -419,6 +477,28 @@ namespace BioLib {
 			if (writeTime != null) File.SetLastWriteTime(filePath, (DateTime) writeTime);
 
 			return true;
+		}
+
+		/// <summary>
+		/// Search a relative path in <paramref name="basePath"/> or its parents.
+		/// </summary>
+		/// <param name="basePath">The path to search in</param>
+		/// <param name="relativePath">The path to search for</param>
+		/// <param name="searchDepth">Determines how many levels to go up</param>
+		/// <returns>The full path if found, otherwise null</returns>
+		public static string FileFindBySubDirectory(string basePath, string relativePath, int searchDepth = 3) {
+			var directory = PathGetDirectory(basePath);
+
+			for (var i = 0; i < searchDepth; i++) {
+				var combinedPath = Path.Combine(directory, relativePath);
+				Debug($"Searching {relativePath} in {combinedPath}");
+
+				if (File.Exists(combinedPath)) return Path.GetFullPath(combinedPath);
+
+				directory = Path.Combine(directory, "..");
+			}
+
+			return null;
 		}
 
 		/// <summary>
@@ -568,6 +648,19 @@ namespace BioLib {
 
 		/// <summary>
 		/// Print a simple progress message, e.g.
+		/// <code>[1/10] Processing file file1.txt</code><br/>
+		/// This function does not add a newline character at the end,
+		/// to allow appending additional information later.
+		/// </summary>
+		/// <param name="msg"></param>
+		/// <param name="current"></param>
+		/// <param name="total"></param>
+		public static void ProgressPartial(string msg, int current, int total) {
+			Cout($"[{current}/{total}] {msg}", LOG_SEVERITY.MESSAGE, false);
+		}
+
+		/// <summary>
+		/// Print a simple progress message, e.g.
 		/// <code>[1/10] Processing file file1.txt</code>
 		/// This function saves the last <paramref name="current"/> value and does not print anything for subsequent calls
 		/// with the same <paramref name="current"/> value.<br/><see cref="ProgressWithoutDuplicatesReset"/> must be called
@@ -593,6 +686,48 @@ namespace BioLib {
 		}
 
 		/// <summary>
+		/// Convert a byte array to a formatted string
+		/// </summary>
+		/// <param name="array">The array to format</param>
+		/// <param name="endIndex">An optional index to stop at</param>
+		/// <param name="formatString">The format string to use for each number</param>
+		/// <param name="formatStringOffset">The format string to use for the offset</param>
+		/// <param name="valuesPerLine">The number of values per line</param>
+		/// <param name="separatorPosition">The position at which a separator (space) should be put</param>
+		/// <returns></returns>
+		private static string FormatNumbers(byte[] array, int endIndex = -1, string formatString = "", string formatStringOffset = "", int valuesPerLine = 16, int separatorPosition = 8) {
+			if (array.Length < 1) return null;
+
+			var output = new StringBuilder();
+			endIndex = endIndex < 0? array.Length: Clamp(endIndex, 0, array.Length);
+
+			for (int i = 0; i < endIndex; i += valuesPerLine) {
+				output.Append(i.ToString(formatStringOffset) + " ");
+				FormatNumbersLine(output, array, i, valuesPerLine, formatString, separatorPosition);
+			}
+
+			return output.ToString();
+		}
+
+		private static void FormatNumbersLine(StringBuilder output, byte[] array, int start, int count, string formatString, int separatorPosition) {
+			var end = start + count;
+
+			for (int i = start; i < end; i ++) {
+				if (i % separatorPosition == 0) output.Append("  ");
+				output.Append(" " + array[i].ToString(formatString));
+			}
+
+			output.Append("   ");
+			byte b;
+			for (int i = start; i < end; i++) {
+				b = array[i];
+				output.Append(b < 31 || b >= 127? '.': Convert.ToChar(b));
+			}
+
+			output.AppendLine();
+		}
+
+		/// <summary>
 		/// Print an array of numbers in a format that fits numeric values better than the generic <see cref="Cout(IEnumerable, LOG_SEVERITY)"/>
 		/// </summary>
 		/// <param name="array">The array to print</param>
@@ -602,29 +737,16 @@ namespace BioLib {
 		/// <param name="valuesPerLine">The maximum amount of numbers per line</param>
 		/// <param name="separatorPosition">Position at which a larger gap should be inserted</param>
 		/// <param name="logSeverity">The <see cref="LOG_SEVERITY"/> for the output</param>
-		public static void PrintNumbers(byte[] array, int endIndex = -1, string formatString = "", string formatStringOffset = "", uint valuesPerLine = 16, uint separatorPosition = 8, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE) {
-			if (array.Length < 1) {
+		public static void PrintNumbers(byte[] array, int endIndex = -1, string formatString = "", string formatStringOffset = "", int valuesPerLine = 16, int separatorPosition = 8, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE) {
+			var formatted = FormatNumbers(array, endIndex, formatString, formatStringOffset, valuesPerLine, separatorPosition);
+			
+			if (formatted == null) {
 				Cout();
 				Cout("<empty>\n");
 				return;
 			}
-			
-			var output = "";
-			endIndex = endIndex < 0? array.Length: Clamp(endIndex, 0, array.Length);
 
-			for (int i = 0; i < endIndex; i++) {
-				if (i % valuesPerLine == 0) {
-					Cout(output, logSeverity);
-					var offset = i / valuesPerLine;
-					output = offset.ToString(formatStringOffset) + "\t" + array[i].ToString(formatString);
-				}
-				else {
-					if (i % separatorPosition == 0) output += "  ";
-					output += " " + array[i].ToString(formatString);
-				}
-			}
-
-			Cout(output, logSeverity);
+			Cout(formatted, logSeverity);
 			Cout();
 		}
 
@@ -669,7 +791,8 @@ namespace BioLib {
 		/// </summary>
 		/// <param name="msg">The message to print</param>
 		/// <param name="logSeverity">Affects how the message will be displayed. Refer to the <see cref="LOG_SEVERITY"/> documentation.</param>
-		public static void Cout(string msg, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE) {
+		/// <param name="appendNewLine">If enabled, a newline character is appended to the message.</param>
+		public static void Cout(string msg, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE, bool appendNewLine = true) {
 #if !DEBUG
 			if (logSeverity == LOG_SEVERITY.DEBUG) return;
 #endif
@@ -683,16 +806,17 @@ namespace BioLib {
 
 			if (logSeverity != LOG_SEVERITY.MESSAGE) msg = $"[{logSeverity}] {msg}";
 			if (CoutPrintTime) PrintTime();
-			if (CoutKeepLog) logStringBuilder.AppendLine(msg);
+			if (appendNewLine) msg += "\n";
+			if (CoutKeepLog) logStringBuilder.Append(msg);
 
 			switch (logSeverity) {
 				case LOG_SEVERITY.ERROR:
 				case LOG_SEVERITY.CRITICAL:
 					//Console.Error.WriteLine(msg);
-					Console.WriteLine(msg);
+					Console.Write(msg);
 					break;
 				default:
-					Console.WriteLine(msg);
+					Console.Write(msg);
 					break;
 			}
 		}
@@ -717,6 +841,10 @@ namespace BioLib {
 		/// <param name="bytesToDump">The amount of bytes to print</param>
 		/// <param name="logSeverity">Affects how the message will be displayed. Refer to the <see cref="LOG_SEVERITY"/> documentation.</param>
 		public static void Cout(byte[] array, int bytesToDump = 256, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE) {
+#if !DEBUG
+			if (logSeverity == LOG_SEVERITY.DEBUG) return;
+#endif
+
 			HexDump(array, bytesToDump, logSeverity);
 		}
 
@@ -728,6 +856,10 @@ namespace BioLib {
 		/// <param name="bytesToDump">The amount of bytes to print</param>
 		/// <param name="logSeverity">Affects how the message will be displayed. Refer to the <see cref="LOG_SEVERITY"/> documentation.</param>
 		public static void Cout(Stream stream, int bytesToDump = 256, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE) {
+#if !DEBUG
+			if (logSeverity == LOG_SEVERITY.DEBUG) return;
+#endif
+
 			Cout(stream + " @ " + stream.Position + ":", logSeverity);
 
 			HexDump(stream, bytesToDump, logSeverity);
@@ -741,12 +873,13 @@ namespace BioLib {
 		}
 
 		/// <summary>
-		/// Print the string representation of an object to stdout. See <see cref="Cout(string, LOG_SEVERITY)"/>.
+		/// Print the string representation of an object to stdout. See <see cref="Cout(string, LOG_SEVERITY, bool)"/>.
 		/// </summary>
 		/// <param name="msg">The message to print</param>
 		/// <param name="logSeverity">Affects how the message will be displayed. Refer to the <see cref="LOG_SEVERITY"/> documentation.</param>
-		public static void Cout(object msg, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE) {
-			Cout(msg == null? "null": msg.ToString(), logSeverity);
+		/// <param name="appendNewLine">If enabled, a newline character is appended to the message.</param>
+		public static void Cout(object msg, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE, bool appendNewLine = true) {
+			Cout(msg == null? "null": msg.ToString(), logSeverity, appendNewLine);
 		}
 
 		/// <summary>
@@ -757,18 +890,28 @@ namespace BioLib {
 		}
 
 		/// <summary>
-		/// Prints the current time and <paramref name="msg"/> to stdout. See <see cref="Bio.Cout(string, LOG_SEVERITY)"/>
+		/// Prints the current time and <paramref name="msg"/> to stdout. See <see cref="Bio.Cout(string, LOG_SEVERITY, bool)"/>
 		/// </summary>
 		/// <param name="msg">The message to print</param>
 		/// <param name="logSeverity">Affects how the message will be displayed. Refer to the <see cref="LOG_SEVERITY"/> documentation.</param>
-		public static void Tout(object msg, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE) {
+		/// <param name="appendNewLine">If enabled, a newline character is appended to the message.</param>
+		public static void Tout(object msg, LOG_SEVERITY logSeverity = LOG_SEVERITY.MESSAGE, bool appendNewLine = true) {
 			PrintTime();
-			Cout(msg, logSeverity);
+			Cout(msg, logSeverity, appendNewLine);
+		}
+
+		/// <summary>
+		/// Print a newline.
+		/// </summary>
+		public static void Debug() {
+#if DEBUG
+			Console.WriteLine();
+#endif
 		}
 
 		/// <summary>
 		/// Print a debug message.
-		/// This is a convenience method to be used instead of <see cref="Cout(object, LOG_SEVERITY)"/> with severity <see cref="LOG_SEVERITY.DEBUG"/>
+		/// This is a convenience method to be used instead of <see cref="Cout(object, LOG_SEVERITY, bool)"/> with severity <see cref="LOG_SEVERITY.DEBUG"/>
 		/// </summary>
 		/// <param name="msg">The message to print</param>
 		public static void Debug(object msg) {
@@ -777,7 +920,7 @@ namespace BioLib {
 
 		/// <summary>
 		/// Print a debug message.
-		/// This is a convenience method to be used instead of <see cref="Cout(object, LOG_SEVERITY)"/> with severity <see cref="LOG_SEVERITY.DEBUG"/>
+		/// This is a convenience method to be used instead of <see cref="Cout(object, LOG_SEVERITY, bool)"/> with severity <see cref="LOG_SEVERITY.DEBUG"/>
 		/// </summary>
 		/// <param name="msg">The message(s) to print</param>
 		public static void Debug(params object[] msg) {
@@ -785,8 +928,18 @@ namespace BioLib {
 		}
 
 		/// <summary>
+		/// Print a debug message.
+		/// This is a convenience method to be used instead of <see cref="Cout(object, LOG_SEVERITY, bool)"/> with severity <see cref="LOG_SEVERITY.DEBUG"/>
+		/// </summary>
+		/// <param name="bytes">The byte array to print</param>
+		/// <param name="bytesToDump">The number of bytes to dump</param>
+		public static void Debug(byte[] bytes, int bytesToDump = 256) {
+			Cout(bytes, bytesToDump, LOG_SEVERITY.DEBUG);
+		}
+
+		/// <summary>
 		/// Print a warning message.
-		/// This is a convenience method to be used instead of <see cref="Cout(object, LOG_SEVERITY)"/> with severity <see cref="LOG_SEVERITY.WARNING"/>
+		/// This is a convenience method to be used instead of <see cref="Cout(object, LOG_SEVERITY, bool)"/> with severity <see cref="LOG_SEVERITY.WARNING"/>
 		/// </summary>
 		/// <param name="msg">The message to print</param>
 		public static void Warn(object msg) {
@@ -816,7 +969,7 @@ namespace BioLib {
 		}
 
 		/// <summary>
-		/// Returns a log of all messages printed by <see cref="Cout(object, LOG_SEVERITY)"/>.<br/>
+		/// Returns a log of all messages printed by <see cref="Cout(object, LOG_SEVERITY, bool)"/>.<br/>
 		/// Requires <see cref="CoutKeepLog"/> option set to true to work.
 		/// </summary>
 		/// <returns></returns>
@@ -892,6 +1045,10 @@ namespace BioLib {
 			/// The program does not support the action initialized by the user
 			/// </summary>
 			NOT_SUPPORTED,
+			/// <summary>
+			/// A required file could not be found
+			/// </summary>
+			MISSING_FILE,
 			/// <summary>
 			/// Generic error at runtime
 			/// </summary>

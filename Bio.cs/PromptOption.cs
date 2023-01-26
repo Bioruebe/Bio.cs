@@ -7,7 +7,7 @@ namespace BioLib {
 	/// A collection of <see cref="PromptOption"/>s to be displayed in a prompt
 	/// </summary>
 	public class PromptOptions {
-		private Dictionary<char, PromptOption> options = new Dictionary<char, PromptOption>();
+		private readonly Dictionary<char, PromptOption> options = new Dictionary<char, PromptOption>();
 		
 		/// <summary>
 		/// The option to select if the user presses enter

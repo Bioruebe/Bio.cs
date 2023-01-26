@@ -7,6 +7,9 @@ using BioLib;
 namespace BioTests {
 	[TestClass]
 	public class BioTests {
+		private const int ARRAY_LENGTH = 32;
+		private readonly byte[] nullBytes = new byte[ARRAY_LENGTH];
+		private readonly byte[] randomBytes = Bio.RandomByteArray(ARRAY_LENGTH);
 
 		[TestMethod]
 		[ExpectedException(typeof(ArgumentNullException))]
@@ -37,6 +40,40 @@ namespace BioTests {
 			var result = Bio.HexToBytes(hexString);
 			Assert.AreEqual(expected.Length, result.Length);
 			Assert.IsTrue(expected.SequenceEqual(result));
+		}
+
+		[TestMethod]
+		public void Xor_NullBytes_ShouldEqualInput() {
+			var result = Bio.Xor(nullBytes, randomBytes);
+			CollectionAssert.AreEqual(randomBytes, result);
+		}
+
+		[TestMethod]
+		public void Xor_Identity_ShouldEqualZero() {
+			var result = Bio.Xor(randomBytes, randomBytes);
+			CollectionAssert.AreEqual(nullBytes, result);
+		}
+
+		[TestMethod]
+		public void Xor_Twice_ShouldEqualIdentity() {
+			var key = Bio.RandomByteArray(ARRAY_LENGTH);
+			var once = Bio.Xor(randomBytes, key);
+			var twice = Bio.Xor(once, key);
+			CollectionAssert.AreEqual(randomBytes, twice);
+		}
+
+		[TestMethod]
+		public void Repeat() {
+			var i = 0;
+			Bio.Repeat(() => i++, 5);
+			Assert.AreEqual(i, 5);
+		}
+
+		[TestMethod]
+		public void Repeat_ZeroTimes() {
+			var i = 0;
+			Bio.Repeat(() => i++, 0);
+			Assert.AreEqual(i, 0);
 		}
 	}
 }

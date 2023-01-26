@@ -7,7 +7,7 @@ using BioLib;
 namespace BioTests {
 	[TestClass]
 	public class FileTests {
-		private static string BASE_PATH = Path.GetFullPath(".");
+		private static readonly string BASE_PATH = Path.GetFullPath(".");
 		private const string PATH_TRAVERSAL_PATH = @".\..\..\..\file.txt";
 		private const string RELATIVE_FILE = @".\file.txt";
 		private const string ABSOLUTE_FILE = @"C:\file.txt";
@@ -16,7 +16,7 @@ namespace BioTests {
 		private const string INVALID_PATH = @"C:\<file>.txt";
 		private const string INVALID_PATH_FILE_NAME = @"C:\file?.txt";
 		private const string FILE_NAME = "file.txt";
-		private string combinedPath = BASE_PATH + Path.DirectorySeparatorChar + FILE_NAME;
+		private readonly string combinedPath = BASE_PATH + Path.DirectorySeparatorChar + FILE_NAME;
 
 		[TestInitialize]
 		public void InitializeTests() {

@@ -8,11 +8,25 @@ namespace BioLib.Streams {
     /// <summary>
     /// Extension methods for generic <see cref="Stream"/>s
     /// </summary>
-	public static class StreamExtensions {
+    public static class StreamExtensions {
         /// <summary>
         /// The size of the internal buffer used for most of the functions
         /// </summary>
         public static int bufferSize = 1024;
+
+        /// <summary>
+        /// The magic number to detect MZ executables
+        /// </summary>
+        private static readonly byte[] MAGIC_EXE = { 0x4D, 0x5A };
+
+        /// <summary>
+        /// Return the remaining length of the stream
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <returns>The remaining length of the stream</returns>
+        public static long RemainingLength(this Stream stream) {
+            return stream.Length - stream.Position;
+        }
 
         /// <summary>
         /// Ensure the <paramref name="stream"/>'s position is not changed by the <paramref name="action"/> passed as parameter.
@@ -27,7 +41,7 @@ namespace BioLib.Streams {
             var position = stream.Position;
             action();
             stream.Position = position;
-		}
+        }
 
         /// <summary>
         /// Compare two Streams by content. Does not change the streams' positions.
@@ -69,7 +83,7 @@ namespace BioLib.Streams {
         /// <returns>True if the stream's position is zero, otherwise false</returns>
         public static bool IsAtStart(this Stream stream) {
             return stream.Position == 0;
-		}
+        }
 
         /// <summary>
         /// Check if the stream's position is the end of the stream
@@ -78,6 +92,38 @@ namespace BioLib.Streams {
         /// <returns>True if the stream's position is the end of the stream, otherwise false</returns>
         public static bool IsAtEnd(this Stream stream) {
             return stream.Position == stream.Length;
+        }
+
+        /// <summary>
+        /// Test whether the data at the stream's current position matches the given <paramref name="pattern"/>.
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <param name="pattern">The pattern to test</param>
+        /// <param name="advancePosition">Whether to reset the stream's position after comparision or not.</param>
+        /// <returns>True or false</returns>
+        public static bool Matches(this Stream stream, byte[] pattern, bool advancePosition = false) {
+            if (stream.RemainingLength() < pattern.Length) return false;
+
+            var buffer = new byte[pattern.Length];
+
+            if (advancePosition) {
+                stream.Read(buffer, 0, pattern.Length);
+            }
+            else {
+                stream.KeepPosition(() => stream.Read(buffer, 0, pattern.Length));
+            }
+
+            return Bio.MatchPattern(buffer, pattern);
+        }
+
+        /// <summary>
+        /// Determine whether the data at the current is an MZ executable.
+        /// Does not advance the stream's position.
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <returns>True or false</returns>
+        public static bool IsExecutable(this Stream stream) {
+            return stream.Matches(MAGIC_EXE);
         }
 
         /// <summary>
@@ -97,7 +143,21 @@ namespace BioLib.Streams {
         }
 
         /// <summary>
-        /// Advance the stream's position by N bytes while staying in bounds
+        /// Decrease the stream's position by N <paramref name="bytes"/> while staying in bounds.<br/><br/>
+        /// Convenience function for calling <see cref="Skip(Stream, long, long, long)"/> with a negative number.
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <param name="bytes">Amount of bytes to move backwards. Can be negative.</param>
+        /// <param name="lowerLimit">Optional lower limit, defaults to 0</param>
+        /// <param name="upperLimit">Optional upper limt, defaults to the stream's length</param>
+        /// <returns>True, if the position could be set; false, if the new position would have been out of bounds</returns>
+        /// <returns></returns>
+        public static bool Back(this Stream stream, long bytes = 1, long lowerLimit = 0, long upperLimit = -1) {
+            return Skip(stream, -bytes, lowerLimit, upperLimit);
+        }
+
+        /// <summary>
+        /// Advance the stream's position by N <paramref name="bytes"/> while staying in bounds
         /// </summary>
         /// <param name="stream"></param>
         /// <param name="bytes">Amount of bytes to move. Can be negative.</param>
@@ -111,7 +171,7 @@ namespace BioLib.Streams {
 
             stream.Position = newPosition;
             return true;
-		}
+        }
 
         /// <summary>
         /// Create a copy of a stream
@@ -120,22 +180,22 @@ namespace BioLib.Streams {
         /// <returns>A <see cref="MemoryStream"/> with a copy of the stream's content</returns>
         public static MemoryStream Copy(this Stream stream) {
             return stream.ExtractFrom(0);
-		}
+        }
 
         /// <summary>
-		/// Copy N <paramref name="bytes"/> from <paramref name="input"/> to <paramref name="output"/> stream
-		/// </summary>
-		/// <param name="input">Input stream</param>
-		/// <param name="output">Output stream</param>
-		/// <param name="bytes">Amount of bytes to copy or -1 to copy all</param>
-		public static void Copy(this Stream input, Stream output, long bytes = -1) {
+        /// Copy N <paramref name="bytes"/> from <paramref name="input"/> to <paramref name="output"/> stream
+        /// </summary>
+        /// <param name="input">Input stream</param>
+        /// <param name="output">Output stream</param>
+        /// <param name="bytes">Amount of bytes to copy or -1 to copy all</param>
+        public static void Copy(this Stream input, Stream output, long bytes = -1) {
             if (output == null) throw new ArgumentNullException(nameof(output));
 
             var buffer = new byte[bufferSize];
             int read;
             if (bytes < 0) bytes = input.Length - input.Position;
 
-            //Bio.Debug($"Copy {bytes} bytes from position {input.Position}");
+            //Bio.Debug($"Copying {bytes} bytes from position {input.Position}");
             while (bytes > 0 && (read = input.Read(buffer, 0, (int)Math.Min(bufferSize, bytes))) > 0) {
                 output.Write(buffer, 0, read);
                 bytes -= read;
@@ -217,8 +277,8 @@ namespace BioLib.Streams {
 
             while (stream.Position < endOffset) {
                 yield return Extract(stream, Math.Min(length, endOffset - stream.Position));
-			}
-		}
+            }
+        }
 
         /// <summary>
         /// Appends <paramref name="other"/> to this stream. This is a convenience function, which creates a new instance of <see cref="ConcatenatedStream"/>.<br/><br/>
@@ -231,7 +291,7 @@ namespace BioLib.Streams {
             if (other == null) throw new ArgumentNullException(nameof(other));
 
             return new ConcatenatedStream(stream, other);
-		}
+        }
 
         /// <summary>
         /// Appends <paramref name="other"/> to this stream. This is a convenience function, which creates a new instance of <see cref="ConcatenatedStream"/>.<br/><br/>
@@ -258,7 +318,7 @@ namespace BioLib.Streams {
         /// <param name="pattern">The byte pattern to search for</param>
         /// <param name="endOffset">An optional index at which the search should stop, defaults to the end of the stream</param>
         /// <returns>True if the pattern was found, otherwise false</returns>
-		public static bool Find(this Stream stream, byte[] pattern, long endOffset = -1) {
+        public static bool Find(this Stream stream, byte[] pattern, long endOffset = -1) {
             if (pattern == null) throw new ArgumentNullException(nameof(pattern));
 
             var patternPosition = 0;
@@ -284,6 +344,25 @@ namespace BioLib.Streams {
 
             stream.Position = initialStreamPosition;
             return false;
+        }
+
+        /// <summary>
+        /// Find the given <paramref name="pattern"/> in the stream and set the stream's position to the position at which it was found.
+        /// If the <paramref name="pattern"/> was not found, the position does not change.
+        /// <br/><br/>
+        /// <b>Warning</b>: This function uses naive search, reading and comparing a single byte at a time. This can be very slow for big streams!
+        /// Only use this function if you expect the pattern to be found and/or set the <paramref name="endOffset"/>. Otherwise your programm may freeze.
+        /// </summary>
+        /// <param name="stream">The search stream</param>
+        /// <param name="pattern">The string pattern to search for</param>
+        /// <param name="endOffset">An optional index at which the search should stop, defaults to the end of the stream</param>
+        /// <param name="utf8">Whether the pattern is UTF-8 or not</param>
+        /// <returns>True if the pattern was found, otherwise false</returns>
+        public static bool Find(this Stream stream, string pattern, long endOffset = -1, bool utf8 = true) {
+            var encoding = utf8? Encoding.UTF8: Encoding.ASCII;
+            var bytePattern = encoding.GetBytes(pattern);
+
+            return Find(stream, bytePattern, endOffset);
         }
 
         /// <summary>
@@ -348,11 +427,11 @@ namespace BioLib.Streams {
                 while (stream.Find(pattern, endOffset)) {
                     offsets.Add(stream.Position);
                     if (!stream.Skip(pattern.Length)) break;
-				}
+                }
             });
 
             return offsets;
-		}
+        }
 
         /// <summary>
         /// Write the complete content of a stream to a file. Does not advance the stream's position.
@@ -383,6 +462,7 @@ namespace BioLib.Streams {
             if (copyFunction == null) copyFunction = (inputStream, outputStream) => inputStream.Copy(outputStream);
             
             using (var fileStream = Bio.CreateFile(path, promptId)) {
+                if (fileStream == null) return true; // User decided to not overwrite existing file
                 input.KeepPosition(() => copyFunction(input, fileStream));
             }
 
@@ -405,6 +485,6 @@ namespace BioLib.Streams {
         /// <returns>An UTF-8 string</returns>
         public static string ToUtf8String(this Stream stream) {
             return Bio.BytesToString(stream.ToByteArray());
-		}
+        }
     }
 }
