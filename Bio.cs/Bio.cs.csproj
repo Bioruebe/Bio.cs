@@ -5,7 +5,7 @@
 		<MinClientVersion>1.5</MinClientVersion>
 		<PackageId>Bioruebe.BioLib</PackageId>
 		<Product>BioLib</Product>
-		<Version>2.5.0</Version>
+		<Version>2.6.0</Version>
 		<Authors>Bioruebe</Authors>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageProjectUrl>https://github.com/Bioruebe/Bio.cs</PackageProjectUrl>
@@ -13,7 +13,7 @@
 		<RepositoryType>git</RepositoryType>
 		<PackageReleaseNotes>https://github.com/Bioruebe/Bio.cs/tree/master/docs/CHANGELOG.md</PackageReleaseNotes>
 		<NeutralLanguage>en</NeutralLanguage>
-		<Copyright>2018-2023 William Engelmann</Copyright>
+		<Copyright>2018-2024 William Engelmann</Copyright>
 		<DocumentationFile>Bio.cs.xml</DocumentationFile>
 		<Description>Bioruebe's standard library</Description>
 	</PropertyGroup>
