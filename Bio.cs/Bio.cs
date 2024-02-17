@@ -396,10 +396,11 @@ namespace BioLib {
 		/// </summary>
 		/// <param name="path"></param>
 		/// <param name="fileMode"></param>
+		/// <param name="fileAccess"></param>
 		/// <returns></returns>
-		public static FileStream FileOpen(string path, FileMode fileMode) {
+		public static FileStream FileOpen(string path, FileMode fileMode, FileAccess fileAccess = FileAccess.ReadWrite) {
 			try {
-				return File.Open(path, fileMode);
+				return File.Open(path, fileMode, fileAccess);
 			}
 			catch (FileNotFoundException) {
 				Error("The input file does not exist", EXITCODE.IO_ERROR);
