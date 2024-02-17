@@ -22,9 +22,24 @@ namespace BioLib.Streams {
 		/// </summary>
 		/// <param name="binaryReader"></param>
 		/// <param name="utf8">Interpret the string as UTF-8; otherwise ASCII is used</param>
+		/// <param name="ignoreTrailingNullBytes">If true, any null bytes at the end of the string are ignored</param>
 		/// <returns></returns>
 		public static string Read8BitPrefixedString(this BinaryReader binaryReader, bool utf8 = true, bool ignoreTrailingNullBytes = false) {
 			var length = binaryReader.ReadByte();
+			var buffer = new byte[length];
+			binaryReader.Read(buffer, 0, length);
+			return Bio.BytesToString(buffer, utf8, ignoreTrailingNullBytes);
+		}
+
+		/// <summary>
+		/// Read a string with its length stored as a 32-bit prefix before the string content
+		/// </summary>
+		/// <param name="binaryReader"></param>
+		/// <param name="utf8">Interpret the string as UTF-8; otherwise ASCII is used</param>
+		/// <param name="ignoreTrailingNullBytes">If true, any null bytes at the end of the string are ignored</param>
+		/// <returns></returns>
+		public static string Read32BitPrefixedString(this BinaryReader binaryReader, bool utf8 = true, bool ignoreTrailingNullBytes = false) {
+			var length = binaryReader.ReadInt32();
 			var buffer = new byte[length];
 			binaryReader.Read(buffer, 0, length);
 			return Bio.BytesToString(buffer, utf8, ignoreTrailingNullBytes);
