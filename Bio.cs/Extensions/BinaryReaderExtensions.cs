@@ -23,11 +23,11 @@ namespace BioLib.Streams {
 		/// <param name="binaryReader"></param>
 		/// <param name="utf8">Interpret the string as UTF-8; otherwise ASCII is used</param>
 		/// <returns></returns>
-		public static string Read8BitPrefixedString(this BinaryReader binaryReader, bool utf8 = true) {
+		public static string Read8BitPrefixedString(this BinaryReader binaryReader, bool utf8 = true, bool ignoreTrailingNullBytes = false) {
 			var length = binaryReader.ReadByte();
 			var buffer = new byte[length];
 			binaryReader.Read(buffer, 0, length);
-			return Bio.BytesToString(buffer, utf8);
+			return Bio.BytesToString(buffer, utf8, ignoreTrailingNullBytes);
 		}
 
 		/// <summary>
