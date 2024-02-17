@@ -712,6 +712,7 @@ namespace BioLib {
 
 		private static void FormatNumbersLine(StringBuilder output, byte[] array, int start, int count, string formatString, int separatorPosition) {
 			var end = start + count;
+			if (end > array.Length) end = array.Length - 1;
 
 			for (int i = start; i < end; i ++) {
 				if (i % separatorPosition == 0) output.Append("  ");
