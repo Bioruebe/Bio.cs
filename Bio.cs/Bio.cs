@@ -849,6 +849,16 @@ namespace BioLib {
 		}
 
 		/// <summary>
+		/// Pretty print a dictionary's content.
+		/// </summary>
+		/// <param name="dictionary"></param>
+		public static void Cout(IDictionary dictionary) {
+			foreach (var key in dictionary.Keys) {
+				Cout($"\t{key} = {dictionary[key]}");
+			}
+		}
+
+		/// <summary>
 		/// Pretty print a stream's content.
 		/// Convenience function, which calls <see cref="HexDump(byte[], int, LOG_SEVERITY)"/>
 		/// </summary>
@@ -935,6 +945,15 @@ namespace BioLib {
 		/// <param name="bytesToDump">The number of bytes to dump</param>
 		public static void Debug(byte[] bytes, int bytesToDump = 256) {
 			Cout(bytes, bytesToDump, LOG_SEVERITY.DEBUG);
+		}
+
+		/// <summary>
+		/// Print a debug message.
+		/// This is a convenience method to be used instead of <see cref="Cout(object, LOG_SEVERITY, bool)"/> with severity <see cref="LOG_SEVERITY.DEBUG"/>
+		/// </summary>
+		/// <param name="dictionary"></param>
+		public static void Debug(IDictionary dictionary) {
+			Cout(dictionary);
 		}
 
 		/// <summary>
